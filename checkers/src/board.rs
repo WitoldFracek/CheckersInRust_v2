@@ -22,10 +22,6 @@ impl Board {
         }
     }
 
-    pub fn test(&self) -> u32{
-        self.occupation.count_ones()
-    }
-
     pub fn square(&self, alias: &str) -> Option<Figure> {
         assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
         let letter = alias.chars().next()?.to_ascii_uppercase();
@@ -63,17 +59,30 @@ impl Board {
         assert!(range.contains(&x), "x out of bounds. Got {}", x);
         assert!(range.contains(&y), "x out of bounds. Got {}", y);
         let shift = x / 2 + y * 4;
-        let (occupation, color, figure, flag) = match figure {
+        let (occupation, color, figure, _) = match figure {
             None => (0, 0, 0, 0),
             Some(figure) => figure.bits()
         };
-        let ones = u32::MAX;
         if occupation == 0 {
-            println!("{:b}", !(1 << shift));
-            self.occupation &= !(1 << shift)
+            self.occupation &= !(1 << shift);
+            return;
         } else {
-            self.occupation |= occupation << shift
+            self.occupation |= 1 << shift;
         }
+        if color == 0 {
+            self.color &= !(1 << shift);
+        } else {
+            self.color |= 1 << shift;
+        }
+        if figure == 0 {
+            self.figure &= !(1 << shift);
+        } else {
+            self.figure |= 1 << shift;
+        }
+    }
+
+    fn reset_flags(&mut self) {
+        self.flags &= 0;
     }
 
     pub fn num_pawns(&self, color: CheckersColor) -> u32 {
