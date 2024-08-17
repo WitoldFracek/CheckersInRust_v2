@@ -2,6 +2,16 @@ use std::fmt::format;
 use crate::controller::{CheckersColor, Figure};
 use crate::colors::colors as colors;
 
+macro_rules! set_bit {
+    ($board: expr, $field: ident, $shift: expr, $value: expr) => {
+        assert!($value == 1 || $value == 0);
+        if $value == 1 {
+            $board.$field |= 1 << $shift;
+        } else {
+            $board.$field &= !(1 << $shift);
+        }
+    };
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Board {
@@ -54,35 +64,25 @@ impl Board {
         }
     }
 
+    fn in_range(value: u8) -> bool {
+        (0..=7).contains(&value)
+    }
+
     pub fn set(&mut self, x: u8, y: u8, figure: Option<Figure>) {
-        let range = 0..=7;
-        assert!(range.contains(&x), "x out of bounds. Got {}", x);
-        assert!(range.contains(&y), "x out of bounds. Got {}", y);
+        assert!(Self::in_range(x), "x out of bounds. Got {}", x);
+        assert!(Self::in_range(y), "x out of bounds. Got {}", y);
         let shift = x / 2 + y * 4;
         let (occupation, color, figure, _) = match figure {
             None => (0, 0, 0, 0),
             Some(figure) => figure.bits()
         };
-        if occupation == 0 {
-            self.occupation &= !(1 << shift);
-            return;
-        } else {
-            self.occupation |= 1 << shift;
-        }
-        if color == 0 {
-            self.color &= !(1 << shift);
-        } else {
-            self.color |= 1 << shift;
-        }
-        if figure == 0 {
-            self.figure &= !(1 << shift);
-        } else {
-            self.figure |= 1 << shift;
-        }
+        set_bit!(self, occupation, shift, occupation);
+        set_bit!(self, color, shift, color);
+        set_bit!(self, figure, shift, figure);
     }
 
     fn reset_flags(&mut self) {
-        self.flags &= 0;
+        self.flags = 0;
     }
 
     pub fn num_pawns(&self, color: CheckersColor) -> u32 {
@@ -107,19 +107,24 @@ pub struct BoardPrinter {
 }
 
 impl BoardPrinter {
-     pub fn repr(board: &Board) -> String {
-         let mut ret = String::from("   A  B  C  D  E  F  G  H \n");
-         for y in (0..8).rev() {
-             ret = format!("{ret}{} ", y + 1);
-             for x in 0..8 {
-                 let figure = board.at(x, y);
-                 let r = Self::cell_repr(figure, x, y);
-                 ret = format!("{ret}{r}");
-             }
-             ret = format!("{ret} {}\n", y + 1);
-         }
-         ret = format!("{ret}{}", String::from("   A  B  C  D  E  F  G  H \n"));
-         ret
+
+    pub fn print(board: &Board) {
+        println!("{}", Self::repr(board))
+    }
+
+    pub fn repr(board: &Board) -> String {
+        let mut ret = String::from("   A  B  C  D  E  F  G  H \n");
+        for y in (0..8).rev() {
+            ret = format!("{ret}{} ", y + 1);
+            for x in 0..8 {
+                let figure = board.at(x, y);
+                let r = Self::cell_repr(figure, x, y);
+                ret = format!("{ret}{r}");
+            }
+            ret = format!("{ret} {}\n", y + 1);
+        }
+        ret = format!("{ret}{}", String::from("   A  B  C  D  E  F  G  H \n"));
+        ret
     }
 
     fn cell_repr(cell: Option<Figure>, x: u8, y: u8) -> String {

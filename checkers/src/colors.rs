@@ -28,11 +28,6 @@ pub mod colors {
         }
     }
 
-
-    pub fn custom_color(r: usize, g: usize, b: usize) -> String {
-        format!("\x1b[48;2;{};{};{}m", r, g, b)
-    }
-
     pub mod style {
         pub const BOLD: &str = "\x1b[1m";
         pub const ITALIC: &str = "\x1b[3m";
@@ -54,7 +49,7 @@ pub mod colors {
         pub const ORANGE: &str = "\x1b[38;2;255;128;0m";
 
         pub fn color(r: usize, g: usize, b: usize) -> String {
-            return format!("\x1b[38;2;{};{};{}m", r, g, b)
+            format!("\x1b[38;2;{};{};{}m", r, g, b)
         }
     }
 
@@ -70,7 +65,7 @@ pub mod colors {
         pub const ORANGE: &str = "\x1b[48;2;255;153;51m";
 
         pub fn color(r: usize, g: usize, b: usize) -> String {
-            return format!("\x1b[48;2;{};{};{}m", r, g, b)
+            format!("\x1b[48;2;{};{};{}m", r, g, b)
         }
     }
 }

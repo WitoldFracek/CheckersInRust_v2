@@ -1,5 +1,5 @@
 use crate::board::{Board, BoardPrinter};
-use crate::controller::{CheckersColor, Figure};
+use crate::controller::{CheckersColor, CheckersController, Figure};
 
 mod board;
 mod controller;
@@ -7,19 +7,15 @@ mod colors;
 
 fn main() {
     let mut board = Board::standard();
-
-    let piece = board.at(1, 1);
-    println!("{:?}", piece);
-
     println!("{}", BoardPrinter::repr(&board));
-    // println!("{:?}", board.square("A1"));
-    // println!("{:?}", board.square("A2"));
-    // println!("{:?}", board.square("B1"));
-    // println!("{:?}", board.square("A7"));
-    // println!("{:?}", board.square("F8"));
-    // println!("{:?}", board.square("H7"));
+    let white_pieces = CheckersController::get_white_pieces_position(&board);
+    for (x, y) in white_pieces {
+        println!("({x}, {y}): {}", CheckersController::can_move(&board, x, y));
+    }
 
-    board.set(0, 0, Some(Figure::Pawn(CheckersColor::Black)));
-    println!("{}", BoardPrinter::repr(&board));
-    println!("{}", board.num_white_figures());
+    let black_pieces = CheckersController::get_black_pieces_position(&board);
+    for (x, y) in black_pieces {
+        println!("({x}, {y}): {}", CheckersController::can_move(&board, x, y));
+    }
+
 }
