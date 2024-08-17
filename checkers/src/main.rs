@@ -10,13 +10,9 @@ fn main() {
     println!("{}", BoardPrinter::repr(&board));
     let controller = CheckersController::new(board);
     let white_pieces = controller.get_white_pieces_position();
-    for (x, y) in white_pieces {
-        println!("({x}, {y}): {}", controller.can_move(x, y));
-    }
 
-    let black_pieces = controller.get_black_pieces_position();
-    for (x, y) in black_pieces {
-        println!("({x}, {y}): {}", controller.can_move(x, y));
+    let (d1, d2, d3, d4) = CheckersController::diagonals(2, 2);
+    for d in diagonals {
+        println!("{:?}", d);
     }
-
 }

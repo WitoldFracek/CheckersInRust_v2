@@ -1,4 +1,3 @@
-use std::iter::once;
 use crate::board::Board;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -136,9 +135,34 @@ impl CheckersController {
         figure.unwrap().color() == enemy_color
     }
 
+    pub fn can_pawn_capture(&self, x: u8, y: u8) -> bool {
+        todo!()
+    }
+
     fn in_bounds(x: i8, y: i8) -> bool {
         if y > 7 || x > 7 { return false; }
         if y < 0 || x < 0 { return false; }
         true
+    }
+
+    pub fn diagonals(x: i8, y: i8) -> (Vec<(u8, u8)>, Vec<(u8, u8)>, Vec<(u8, u8)>, Vec<(u8, u8)>) {
+        // right up, left up, right down, left down
+        let d1 = Self::diagonal(x, y, 1, 1);
+        let d2 = Self::diagonal(x, y, -1, 1);
+        let d3 = Self::diagonal(x, y, 1, -1);
+        let d4 = Self::diagonal(x, y, -1, -1);
+        (d1, d2, d3, d4)
+    }
+
+    fn diagonal(x: i8, y: i8, x_step: i8, y_step: i8) -> Vec<(u8, u8)> {
+        let mut ret = vec![];
+        let mut x = x + x_step;
+        let mut y = y + y_step;
+        while Self::in_bounds(x, y) {
+            ret.push((x as u8, y as u8));
+            x += x_step;
+            y += y_step;
+        }
+        ret
     }
 }
