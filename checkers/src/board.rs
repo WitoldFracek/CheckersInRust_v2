@@ -1,4 +1,3 @@
-use std::fmt::format;
 use crate::controller::{CheckersColor, Figure};
 use crate::colors::colors as colors;
 
