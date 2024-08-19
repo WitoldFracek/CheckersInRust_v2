@@ -3,14 +3,35 @@ use crate::controller::{CheckersColor, Figure};
 use crate::colors::colors as colors;
 
 macro_rules! set_bit {
-    ($board: expr, $field: ident, $shift: expr, $value: expr) => {
+    ($board: expr, $field: ident, $x: expr, $y: expr, $value: expr) => {
         assert!($value == 1 || $value == 0);
+        let shift = $x / 2 + $y * 4;
         if $value == 1 {
-            $board.$field |= 1 << $shift;
+            $board.$field |= 1 << shift;
         } else {
-            $board.$field &= !(1 << $shift);
+            $board.$field &= !(1 << shift);
         }
     };
+}
+
+#[derive(Copy, Clone)]
+pub struct Square {
+    pub figure: Option<Figure>,
+    pub was_jumped_over: bool
+}
+
+impl Square {
+    pub fn new(figure: Option<Figure>, was_jumped_over: bool) -> Self {
+        Self { figure, was_jumped_over }
+    }
+
+    pub fn has_figure(&self) -> bool {
+        self.figure.is_some()
+    }
+
+    pub fn figure_color(&self) -> CheckersColor {
+        self.figure.unwrap().color()
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -23,7 +44,7 @@ pub struct Board {
 
 impl Board {
 
-    pub fn square(&self, alias: &str) -> Option<Figure> {
+    pub fn at_alias(&self, alias: &str) -> Option<Figure> {
         assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
         let letter = alias.chars().next()?.to_ascii_uppercase();
         let index = alias.chars().nth(1)?;
@@ -34,12 +55,14 @@ impl Board {
         self.at(x, y)
     }
 
+    fn calculate_shift(x: u8, y: u8) -> u8 { x / 2 + y * 4 }
+
 
     pub fn at(&self, x: u8, y: u8) -> Option<Figure> {
         if x % 2 != y % 2 {
             return None;
         }
-        let shift = x / 2 + y * 4;
+        let shift = Self::calculate_shift(x, y);
         let occupation = (self.occupation >> shift) & 1;
         if occupation == 0 {
             return None;
@@ -55,6 +78,13 @@ impl Board {
         }
     }
 
+    pub fn was_jumped_over(&self, x: u8, y: u8) -> bool {
+        let figure = self.at(x, y);
+        if figure.is_none() { return false; }
+        let shift = Self::calculate_shift(x, y);
+        ((self.flags >> shift) & 1) == 1
+    }
+
     fn in_range(value: u8) -> bool {
         (0..=7).contains(&value)
     }
@@ -62,15 +92,21 @@ impl Board {
     pub fn set(&mut self, x: u8, y: u8, figure: Option<Figure>) {
         assert!(Self::in_range(x), "x out of bounds. Got {}", x);
         assert!(Self::in_range(y), "x out of bounds. Got {}", y);
-        let shift = x / 2 + y * 4;
         let (occupation, color, figure, _) = match figure {
             None => (0, 0, 0, 0),
             Some(figure) => figure.bits()
         };
-        set_bit!(self, occupation, shift, occupation);
-        set_bit!(self, color, shift, color);
-        set_bit!(self, figure, shift, figure);
+        set_bit!(self, occupation, x, y, occupation);
+        set_bit!(self, color, x, y, color);
+        set_bit!(self, figure, x, y, figure);
     }
+
+    pub fn set_flag(&mut self, x: u8, y: u8, flag: bool) {
+        assert!(Self::in_range(x), "x out of bounds. Got {}", x);
+        assert!(Self::in_range(y), "x out of bounds. Got {}", y);
+        set_bit!(self, flags, x, y, if flag { 1 } else { 0 });
+    }
+
 
     fn reset_flags(&mut self) {
         self.flags = 0;

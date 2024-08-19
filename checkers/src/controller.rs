@@ -1,4 +1,4 @@
-use crate::board::Board;
+use crate::board::{Board, set_bit};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CheckersColor{
@@ -59,7 +59,7 @@ pub trait CheckersAction {
     fn start_position(&self) -> (u8, u8);
 
     fn end_position(&self) -> (u8, u8);
-    
+
     fn start_end(&self) -> ((u8, u8), (u8, u8)) {
         (self.start_position(), self.end_position())
     }
