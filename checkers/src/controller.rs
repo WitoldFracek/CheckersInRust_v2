@@ -55,6 +55,52 @@ impl Figure {
     }
 }
 
+pub trait CheckersAction {
+    fn start_position(&self) -> (u8, u8);
+
+    fn end_position(&self) -> (u8, u8);
+    
+    fn start_end(&self) -> ((u8, u8), (u8, u8)) {
+        (self.start_position(), self.end_position())
+    }
+}
+
+pub struct Move {
+    x_start: u8,
+    y_start: u8,
+    x_end: u8,
+    y_end: u8
+}
+
+impl CheckersAction for Move {
+    fn start_position(&self) -> (u8, u8) {
+        (self.x_start, self.y_start)
+    }
+
+    fn end_position(&self) -> (u8, u8) {
+        (self.x_end, self.y_end)
+    }
+}
+
+pub struct Jump {
+    x_start: u8,
+    y_start: u8,
+    x_over: u8,
+    y_over: u8,
+    x_end: u8,
+    y_end: u8
+}
+
+impl CheckersAction for Jump {
+    fn start_position(&self) -> (u8, u8) {
+        (self.x_start, self.y_start)
+    }
+
+    fn end_position(&self) -> (u8, u8) {
+        (self.x_end, self.y_end)
+    }
+}
+
 pub struct CheckersController {
     pub board: Board
 }
