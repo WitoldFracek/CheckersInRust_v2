@@ -44,6 +44,31 @@ pub struct Board {
 
 impl Board {
 
+    pub fn empty() -> Self {
+        Self {occupation: 0, color: 0, figure: 0, flags: 0}
+    }
+
+    pub fn from_str_repr(repr: &str, empty: char, white_pieces: (char, char), black_pieces: (char, char)) -> Self {
+        let mut ret = Self::empty();
+        repr.split("\n").enumerate().for_each(|(y, row)| {
+            row.chars().enumerate().for_each(|(x, c)| {
+                let figure = if c == empty {
+                    None
+                } else if c == white_pieces.0 {
+                    Some(Figure::Pawn(CheckersColor::White))
+                } else if c == white_pieces.1 {
+                    Some(Figure::Queen(CheckersColor::White))
+                } else if c == black_pieces.0 {
+                    Some(Figure::Pawn(CheckersColor::Black))
+                } else {
+                    Some(Figure::Queen(CheckersColor::Black))
+                };
+                ret.set(x as u8, y as u8, figure);
+            })
+        });
+        ret
+    }
+
     pub fn at_alias(&self, alias: &str) -> Option<Figure> {
         assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
         let letter = alias.chars().next()?.to_ascii_uppercase();
@@ -55,7 +80,7 @@ impl Board {
         self.at(x, y)
     }
 
-    fn calculate_shift(x: u8, y: u8) -> u8 { x / 2 + y * 4 }
+    pub fn calculate_shift(x: u8, y: u8) -> u8 { x / 2 + y * 4 }
 
 
     pub fn at(&self, x: u8, y: u8) -> Option<Figure> {
@@ -78,12 +103,6 @@ impl Board {
         }
     }
 
-    pub fn was_jumped_over(&self, x: u8, y: u8) -> bool {
-        let figure = self.at(x, y);
-        if figure.is_none() { return false; }
-        let shift = Self::calculate_shift(x, y);
-        ((self.flags >> shift) & 1) == 1
-    }
 
     fn in_range(value: u8) -> bool {
         (0..=7).contains(&value)
@@ -92,13 +111,15 @@ impl Board {
     pub fn set(&mut self, x: u8, y: u8, figure: Option<Figure>) {
         assert!(Self::in_range(x), "x out of bounds. Got {}", x);
         assert!(Self::in_range(y), "x out of bounds. Got {}", y);
-        let (occupation, color, figure, _) = match figure {
-            None => (0, 0, 0, 0),
-            Some(figure) => figure.bits()
-        };
-        set_bit!(self, occupation, x, y, occupation);
-        set_bit!(self, color, x, y, color);
-        set_bit!(self, figure, x, y, figure);
+        if x % 2 == y % 2 {
+            let (occupation, color, figure, _) = match figure {
+                Some(figure) => figure.bits(),
+                None => (0, 0, 0, 0)
+            };
+            set_bit!(self, occupation, x, y, occupation);
+            set_bit!(self, color, x, y, color);
+            set_bit!(self, figure, x, y, figure);
+        }
     }
 
     pub fn set_flag(&mut self, x: u8, y: u8, flag: bool) {
@@ -125,6 +146,17 @@ impl Board {
 
     pub fn num_black_figures(&self) -> u32 {
         (&self.occupation & &self.color).count_ones()
+    }
+
+    pub fn alias(x: u8, y: u8) -> String {
+        assert!(Self::in_range(x), "");
+        assert!(Self::in_range(y));
+        let mut ret = String::with_capacity(2);
+        let col = (x + b'A') as char;
+        let row: char = (y + b'1') as char;
+        ret.push(col);
+        ret.push(row);
+        ret
     }
 
 }

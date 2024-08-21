@@ -6,13 +6,23 @@ mod controller;
 mod colors;
 
 fn main() {
-    let mut board = Board::default();
+    let mut board = Board::from_str_repr(
+        "wewewewe\n\
+              ewewewew\n\
+              eeeeeeee\n\
+              eeeeeeee\n\
+              eeeeeeee\n\
+              eweeeeee\n\
+              Bebebebe\n\
+              ebebebeb",
+        'e', ('w', 'W'), ('b', 'B')
+    );
+    // let mut board = Board::default();
+    // board.set(0, 0, Some(Figure::Pawn(CheckersColor::White)));
     println!("{}", board);
+    board.set(0, 0, Some(Figure::Pawn(CheckersColor::White)));
     let controller = CheckersController::new(board);
-    let white_pieces = controller.get_white_pieces_position();
+    println!("{:?}", controller.queen_captures(0, 6));
 
-    let (d1, d2, d3, d4) = CheckersController::diagonals(2, 2);
-    for d in d1 {
-        println!("{:?}", d);
-    }
+    println!("{}", Board::alias(0, 7));
 }
