@@ -1,4 +1,5 @@
-use crate::board::{Board};
+use std::fmt::{write, Display, Formatter};
+use crate::board::{Board, alias};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CheckersColor{
@@ -89,6 +90,13 @@ impl CheckersAction for Move {
     }
 }
 
+impl Display for Move {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let repr = format!("{} -> {}", alias(self.x_start, self.y_start), alias(self.x_end, self.y_end));
+        write!(f, "{}", repr)
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Jump {
     x_start: u8,
@@ -112,6 +120,18 @@ impl CheckersAction for Jump {
 
     fn end_position(&self) -> (u8, u8) {
         (self.x_end, self.y_end)
+    }
+}
+
+impl Display for Jump {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let repr = format!(
+            "{} --|{}|-> {}",
+            alias(self.x_start, self.y_start),
+            alias(self.x_over, self.y_over),
+            alias(self.x_end, self.y_end)
+        );
+        write!(f, "{}", repr)
     }
 }
 
@@ -202,6 +222,10 @@ impl CheckersController {
         ((self.board.flags >> shift) & 1) == 1
     }
 
+    pub fn tuple_pawn_captures(&self, coords: (u8, u8)) -> Vec<Jump> {
+        self.pawn_captures(coords.0, coords.1)
+    }
+
     pub fn pawn_captures(&self, x: u8, y: u8) -> Vec<Jump> {
         let pawn = self.board.at(x, y);
         if pawn.is_none() { return Vec::new(); }
@@ -224,6 +248,10 @@ impl CheckersController {
             }
         }
         ret
+    }
+
+    pub fn tuple_queen_captures(&self, coords: (u8, u8)) -> Vec<Jump> {
+        self.queen_captures(coords.0, coords.1)
     }
 
     pub fn queen_captures(&self, x: u8, y: u8) -> Vec<Jump> {

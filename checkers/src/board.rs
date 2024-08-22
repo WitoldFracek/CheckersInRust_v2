@@ -14,6 +14,28 @@ macro_rules! set_bit {
     };
 }
 
+pub fn alias(x: u8, y: u8) -> String {
+    assert!(Board::in_range(x), "");
+    assert!(Board::in_range(y));
+    let mut ret = String::with_capacity(2);
+    let col = (x + b'A') as char;
+    let row: char = (y + b'1') as char;
+    ret.push(col);
+    ret.push(row);
+    ret
+}
+
+pub fn coords_from_alias(alias: &str) -> (u8, u8) {
+    assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
+    let letter = alias.chars().next().unwrap().to_ascii_uppercase();
+    let index = alias.chars().nth(1).unwrap();
+    assert!(('A'..='H').contains(&letter), "invalid alias - unknown letter board position {alias:?}");
+    assert!(('1'..='8').contains(&index), "invalid alias - unknown number board position {alias:?}");
+    let x = letter as u8 - b'A';
+    let y = index as u8 - b'1';
+    (x, y)
+}
+
 #[derive(Copy, Clone)]
 pub struct Square {
     pub figure: Option<Figure>,
@@ -148,17 +170,6 @@ impl Board {
         (&self.occupation & &self.color).count_ones()
     }
 
-    pub fn alias(x: u8, y: u8) -> String {
-        assert!(Self::in_range(x), "");
-        assert!(Self::in_range(y));
-        let mut ret = String::with_capacity(2);
-        let col = (x + b'A') as char;
-        let row: char = (y + b'1') as char;
-        ret.push(col);
-        ret.push(row);
-        ret
-    }
-
 }
 
 impl Default for Board {
@@ -181,14 +192,14 @@ impl Display for Board {
             } else {
                 colors::bg::BLACK
             };
-
+            // ♣ ◄◎►
             match cell {
                 None => colors::colored_text("   ", colors::NONE, &bg, true),
                 Some(figure) => match figure {
                     Figure::Pawn(CheckersColor::White) => colors::colored_text(" ● ", &colors::fg::color(255, 255, 255), &bg, true),
-                    Figure::Pawn(CheckersColor::Black) => colors::colored_text(" ● ", &colors::fg::color(118, 118, 118), &bg, true),
-                    Figure::Queen(CheckersColor::White) => colors::colored_text(" ♣ ", &colors::fg::color(255, 255, 255), &bg, true),
-                    Figure::Queen(CheckersColor::Black) => colors::colored_text(" ♣ ", &colors::fg::color(118, 118, 118), &bg, true),
+                    Figure::Pawn(CheckersColor::Black) => colors::colored_text(" ● ", &colors::fg::VIOLET, &bg, true),
+                    Figure::Queen(CheckersColor::White) => colors::colored_text("◄◎►", &colors::fg::color(255, 255, 255), &bg, true),
+                    Figure::Queen(CheckersColor::Black) => colors::colored_text("◄◎►", &colors::fg::VIOLET, &bg, true),
                 }
             }
         }
