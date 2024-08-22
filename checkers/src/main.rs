@@ -5,6 +5,23 @@ mod board;
 mod controller;
 mod colors;
 
+macro_rules! mov {
+    ($from: ident -> $to: ident) => {{
+        let (x_start, y_start) = coords_from_alias(stringify!($from));
+        let (x_end, y_end) = coords_from_alias(stringify!($to));
+        Move::new(x_start, y_start, x_end, y_end)
+    }};
+}
+
+macro_rules! jump {
+    ($from: ident -- $over: ident -> $to: ident) => {{
+        let (x_start, y_start) = coords_from_alias(stringify!($from));
+        let (x_end, y_end) = coords_from_alias(stringify!($to));
+        let (x_over, y_over) = coords_from_alias(stringify!($over));
+        Jump::new(x_start, y_start, x_over, y_over, x_end, y_end)
+    }};
+}
+
 
 fn main() {
     let board = Board::from_str_repr(
@@ -22,11 +39,11 @@ fn main() {
 
     println!("{}", controller.board);
 
-    controller.execute_jump(&Jump::new(5, 5, 4, 4, 3, 3));
+    controller.execute_jump(&jump!(F6 -- E5 -> C3));
     println!("{}", controller.board);
 
     let mut controller = CheckersController::new(board);
-    controller.execute_move(&Move::new(6, 4, 5, 5));
+    controller.execute_move(&mov!(G5 -> F6));
     println!("{}", controller.board);
 
 }
