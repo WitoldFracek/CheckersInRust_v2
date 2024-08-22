@@ -111,6 +111,10 @@ impl Jump {
     pub fn new(x_start: u8, y_start: u8, x_over: u8, y_over: u8, x_end: u8, y_end: u8) -> Self {
         Self {x_start, y_start, x_over, y_over, x_end, y_end}
     }
+
+    pub fn over_position(&self) -> (u8, u8) {
+        (self.x_over, self.y_over)
+    }
 }
 
 impl CheckersAction for Jump {
@@ -174,6 +178,8 @@ impl CheckersController {
         ret
     }
 
+    // moves
+
     pub fn can_move(&self, x: u8, y: u8) -> bool {
         match self.board.at(x, y) {
             None => false,
@@ -183,16 +189,77 @@ impl CheckersController {
         }
     }
 
+    pub fn get_moves_at(&self, x: u8, y: u8) -> Vec<Move> {
+        let figure = self.board.at(x, y);
+        if figure.is_none() { return Vec::new(); }
+        match figure.unwrap() {
+            Figure::Queen(_) => self.queen_moves_at(x, y),
+            Figure::Pawn(CheckersColor::White) => self.white_pawn_moves_at(x, y),
+            Figure::Pawn(CheckersColor::Black) => self.black_pawn_moves_at(x, y),
+        }
+    }
+
+    fn white_pawn_moves_at(&self, x: u8, y: u8) -> Vec<Move> {
+        let mut ret = Vec::with_capacity(2);
+        let (x0, y0) = (x as i8 - 1, y as i8 + 1);
+        let (x1, y1) = (x as i8 + 1, y as i8 + 1);
+        if Self::in_bounds(x0, y0) && self.is_square_free(x0 as u8, y0 as u8) {
+            ret.push(Move::new(
+                x, y, x0 as u8, y0 as u8
+            ));
+        }
+        if Self::in_bounds(x1, y1) && self.is_square_free(x1 as u8, y1 as u8) {
+            ret.push(Move::new(
+                x, y, x1 as u8, y1 as u8
+            ));
+        }
+        ret
+    }
+
+    fn black_pawn_moves_at(&self, x: u8, y: u8) -> Vec<Move> {
+        let mut ret = Vec::with_capacity(2);
+        let (x0, y0) = (x as i8 - 1, y as i8 - 1);
+        let (x1, y1) = (x as i8 + 1, y as i8 - 1);
+        if Self::in_bounds(x0, y0) && self.is_square_free(x0 as u8, y0 as u8) {
+            ret.push(Move::new(
+                x, y, x0 as u8, y0 as u8
+            ));
+        }
+        if Self::in_bounds(x1, y1) && self.is_square_free(x1 as u8, y1 as u8) {
+            ret.push(Move::new(
+                x, y, x1 as u8, y1 as u8
+            ));
+        }
+        ret
+    }
+
+    fn queen_moves_at(&self, x: u8, y: u8) -> Vec<Move> {
+        let mut ret = Vec::new();
+        let (d1, d2, d3, d4) = Self::diagonals(x as i8, y as i8);
+        for diagonal in [d1, d2, d3, d4] {
+            for (x_end, y_end) in diagonal {
+                if Self::in_bounds(x_end as i8, y_end as i8) && self.is_square_free(x_end, y_end) {
+                    ret.push(Move::new(x, y, x_end, y_end));
+                } else if !self.is_square_free(x_end, y_end) {
+                    break
+                }
+            }
+        }
+        ret
+    }
+
     fn can_white_pawn_move(&self, x: u8, y: u8) -> bool {
-        let (x1, y1) = (x - 1, y + 1);
+        let (x1, y1) = (x as i8 - 1, y + 1);
         let (x2, y2) = (x + 1, y + 1);
-        self.is_square_free(x1, y1) || self.is_square_free(x2, y2)
+        (Self::in_bounds(x1, y1 as i8) && self.is_square_free(x1 as u8, y1))
+            || (Self::in_bounds(x2 as i8, y2 as i8) && self.is_square_free(x2, y2))
     }
 
     fn can_black_pawn_move(&self, x: u8, y: u8) -> bool {
-        let (x1, y1) = (x - 1, y - 1);
-        let (x2, y2) = (x + 1, y - 1);
-        self.is_square_free(x1, y1) || self.is_square_free(x2, y2)
+        let (x1, y1) = (x as i8 - 1, y as i8 - 1);
+        let (x2, y2) = (x + 1, y as i8 - 1);
+        (Self::in_bounds(x1, y1) && self.is_square_free(x1 as u8, y1 as u8))
+            || (Self::in_bounds(x2 as i8, y2) && self.is_square_free(x2, y2 as u8))
     }
 
     fn can_queen_move(&self, x: u8, y: u8) -> bool {
@@ -203,10 +270,7 @@ impl CheckersController {
 
     pub fn is_square_free(&self, x: u8, y: u8) -> bool {
         if !Self::in_bounds(x as i8, y as i8) { return false; }
-        match self.board.at(x, y) {
-            None => true,
-            _ => false
-        }
+        self.board.at(x, y).is_none()
     }
 
     pub fn is_enemy_on_square(&self, x: u8, y: u8, enemy_color: CheckersColor) -> bool {
@@ -222,11 +286,30 @@ impl CheckersController {
         ((self.board.flags >> shift) & 1) == 1
     }
 
-    pub fn tuple_pawn_captures(&self, coords: (u8, u8)) -> Vec<Jump> {
-        self.pawn_captures(coords.0, coords.1)
+    pub fn get_all_moves(&self, color: CheckersColor) -> Vec<Move> {
+        let mut ret = Vec::new();
+        let positions = match color {
+            CheckersColor::White => self.get_white_pieces_position(),
+            CheckersColor::Black => self.get_black_pieces_position(),
+        };
+        for (x, y) in positions {
+           let mut figure_moves = self.get_moves_at(x, y);
+            ret.append(&mut figure_moves);
+        }
+        ret
     }
 
-    pub fn pawn_captures(&self, x: u8, y: u8) -> Vec<Jump> {
+    // captures
+
+    pub fn get_all_captures(&self, color: CheckersColor) -> Vec<Vec<Jump>> {
+        todo!()
+    }
+
+    pub fn tuple_pawn_captures_at(&self, coords: (u8, u8)) -> Vec<Jump> {
+        self.pawn_captures_at(coords.0, coords.1)
+    }
+
+    pub fn pawn_captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
         let pawn = self.board.at(x, y);
         if pawn.is_none() { return Vec::new(); }
         let pawn = pawn.unwrap();
@@ -250,11 +333,11 @@ impl CheckersController {
         ret
     }
 
-    pub fn tuple_queen_captures(&self, coords: (u8, u8)) -> Vec<Jump> {
-        self.queen_captures(coords.0, coords.1)
+    pub fn tuple_queen_captures_at(&self, coords: (u8, u8)) -> Vec<Jump> {
+        self.queen_captures_at(coords.0, coords.1)
     }
 
-    pub fn queen_captures(&self, x: u8, y: u8) -> Vec<Jump> {
+    pub fn queen_captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
         let queen = self.board.at(x, y);
         if queen.is_none() { return Vec::new(); }
         let queen = queen.unwrap();
@@ -282,6 +365,23 @@ impl CheckersController {
 
         }
         ret
+    }
+
+    pub fn execute_jump(&mut self, jump: &Jump) {
+        let (x_over, y_over) = jump.over_position();
+        let ((x_start, y_start), (x_end, y_end)) = jump.start_end();
+        let piece = self.board.at(x_start, y_start).unwrap();
+        self.board.set(x_start, y_start, None);
+        self.board.set(x_over, y_over, None);
+        self.board.set_flag(x_over, y_over, true);
+        self.board.set(x_end, y_end, Some(piece));
+    }
+
+    pub fn execute_move(&mut self, move_: &Move) {
+        let ((x_start, y_start), (x_end, y_end)) = move_.start_end();
+        let piece = self.board.at(x_start, y_start).unwrap();
+        self.board.set(x_start, y_start, None);
+        self.board.set(x_end, y_end, Some(piece));
     }
 
     fn in_bounds(x: i8, y: i8) -> bool {
