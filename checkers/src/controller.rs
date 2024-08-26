@@ -302,14 +302,33 @@ impl CheckersController {
     // captures
 
     pub fn get_all_captures(&self, color: CheckersColor) -> Vec<Vec<Jump>> {
-        todo!()
+        let mut ret = Vec::new();
+        let positions = match color {
+            CheckersColor::White => self.get_white_pieces_position(),
+            CheckersColor::Black => self.get_black_pieces_position(),
+        };
+        for (x, y) in positions {
+            let mut captures = self.captures_at(x, y);
+            ret.append(&mut captures);
+        }
+        ret
+    }
+
+    pub fn captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
+        let mut ret = Vec::new();
+        let mut controller = Self::new(self.board);
+        let captures = match controller.board.at(x, y) {
+            None => vec![],
+            Some(Figure::Pawn(_)) => controller.pawn_captures_beginnings_at(x, y),
+            Some(Figure::Queen(_)) => controller.queen_captures_at(x, y),
+        };
     }
 
     pub fn tuple_pawn_captures_at(&self, coords: (u8, u8)) -> Vec<Jump> {
-        self.pawn_captures_at(coords.0, coords.1)
+        self.pawn_captures_beginnings_at(coords.0, coords.1)
     }
 
-    pub fn pawn_captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
+    pub fn pawn_captures_beginnings_at(&self, x: u8, y: u8) -> Vec<Jump> {
         let pawn = self.board.at(x, y);
         if pawn.is_none() { return Vec::new(); }
         let pawn = pawn.unwrap();
