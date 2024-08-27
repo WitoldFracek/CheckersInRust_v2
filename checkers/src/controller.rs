@@ -432,11 +432,11 @@ impl CheckersController {
 
     pub fn diagonals(x: i8, y: i8) -> (Vec<(u8, u8)>, Vec<(u8, u8)>, Vec<(u8, u8)>, Vec<(u8, u8)>) {
         // right up, left up, right down, left down
-        let d1 = Self::diagonal(x, y, 1, 1);
-        let d2 = Self::diagonal(x, y, -1, 1);
-        let d3 = Self::diagonal(x, y, 1, -1);
-        let d4 = Self::diagonal(x, y, -1, -1);
-        (d1, d2, d3, d4)
+        let right_up = Self::diagonal(x, y, 1, 1);
+        let left_up = Self::diagonal(x, y, -1, 1);
+        let right_down = Self::diagonal(x, y, 1, -1);
+        let left_down = Self::diagonal(x, y, -1, -1);
+        (right_up, left_up, right_down, left_down)
     }
 
     fn diagonal(x: i8, y: i8, x_step: i8, y_step: i8) -> Vec<(u8, u8)> {
