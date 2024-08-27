@@ -91,6 +91,23 @@ impl Board {
         ret
     }
 
+    pub fn from_positions(positions: &[(u8, u8, Figure)]) -> Self {
+        let mut ret = Self::empty();
+        for &(x, y, figure) in positions {
+           ret.set(x, y, Some(figure));
+        }
+        ret
+    }
+
+    pub fn from_alias_positions(positions: &[(&str, Figure)]) -> Self {
+        let mut ret = Self::empty();
+        for &(alias, figure) in positions {
+           let (x, y) = coords_from_alias(alias);
+            ret.set(x, y, Some(figure));
+        }
+        ret
+    }
+
     pub fn at_alias(&self, alias: &str) -> Option<Figure> {
         assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
         let letter = alias.chars().next()?.to_ascii_uppercase();
