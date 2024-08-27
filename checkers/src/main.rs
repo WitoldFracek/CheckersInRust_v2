@@ -28,7 +28,7 @@ fn main() {
         "W.......\n\
               .b.b.b..\n\
               ........\n\
-              ...w....\n\
+              ........\n\
               ....b.b.\n\
               .b......\n\
               ....b...\n\
@@ -39,17 +39,8 @@ fn main() {
 
     println!("{}", controller.board);
 
-    // controller.execute_jump(&jump!(A1 -- B2 -> C3));
-    // println!("{}", controller.was_jumped_over(1, 1));
-    // println!("{}", controller.board);
-
-    // for j in controller.possible_queen_jumps_at(0, 0) {
-    //     println!("{j}");
-    // }
-
     for captures in controller.captures_at(0, 0) {
-        captures.iter().for_each(|j| println!("{j}"));
-        println!();
+        println!("{captures}");
     }
 
 }

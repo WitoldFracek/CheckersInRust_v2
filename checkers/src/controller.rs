@@ -298,24 +298,14 @@ impl CheckersController {
     }
 
     // captures
-
-    pub fn get_all_captures(&self, color: CheckersColor) -> Vec<Vec<Jump>> {
-        let mut ret = Vec::new();
-        let positions = match color {
-            CheckersColor::White => self.get_white_pieces_position(),
-            CheckersColor::Black => self.get_black_pieces_position(),
-        };
-        for (x, y) in positions {
-            let mut captures = self.captures_at(x, y);
-            ret.append(&mut captures);
-        }
-        ret
-    }
-
-    pub fn captures_at(&self, x: u8, y: u8) -> Vec<Vec<Jump>> {
+    pub fn captures_at(&self, x: u8, y: u8) -> Vec<JumpChain> {
         let mut ret = Vec::new();
         self.capture_path(x, y, &mut Vec::new(), &mut ret);
-        ret
+        let max_len = ret.iter().map(|v| v.len()).max().unwrap_or(0);
+        ret.into_iter()
+            .filter(|v| v.len() == max_len)
+            .map(|v| JumpChain(v))
+            .collect()
     }
 
     fn capture_path(&self, x: u8, y: u8, path: &mut Vec<Jump>, all_paths: &mut Vec<Vec<Jump>>) {
@@ -449,5 +439,24 @@ impl CheckersController {
             y += y_step;
         }
         ret
+    }
+}
+
+pub struct JumpChain(Vec<Jump>);
+
+impl Display for JumpChain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0.is_empty() { return write!(f, "[]") };
+        let (x_start, y_start) = self.0.first().unwrap().start_position();
+        let mut ret = format!("{} -> ", alias(x_start, y_start));
+        let (mut x_end, mut y_end) = (0, 0);
+        for jump in self.0.iter().skip(1) {
+            let (x_start, y_start) = jump.start_position();
+            let al = alias(x_start, y_start);
+            ret = format!("{ret}{al} -> ");
+            (x_end, y_end) = jump.end_position();
+        };
+        ret = format!("{ret}{}", alias(x_end, y_end));
+        write!(f, "{}", ret)
     }
 }
