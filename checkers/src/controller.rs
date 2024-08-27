@@ -383,13 +383,12 @@ impl CheckersController {
         for diagonal in [d1, d2, d3, d4] {
             let mut enemy_index = 8;
             for (i, &(x_over, y_over)) in diagonal.iter().enumerate() {
-                if !self.is_square_free(x_over, y_over)
-                    && self.is_enemy_on_square(x_over, y_over, queen.enemy_color())
-                    && !self.was_jumped_over(x_over, y_over) {
-                    enemy_index = i;
-                    break;
-                }
                 if self.was_jumped_over(x_over, y_over) {
+                    break;
+                } else if !self.is_square_free(x_over, y_over) {
+                    if self.is_enemy_on_square(x_over, y_over, queen.enemy_color()) {
+                        enemy_index = i;
+                    }
                     break;
                 }
             }
