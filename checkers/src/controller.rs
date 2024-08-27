@@ -178,6 +178,29 @@ impl CheckersController {
         ret
     }
 
+    pub fn options(&self, color: CheckersColor) -> (Vec<JumpChain>, Vec<Move>) {
+        let positions = match color {
+            CheckersColor::White => self.get_white_pieces_position(),
+            CheckersColor::Black => self.get_black_pieces_position()
+        };
+        let mut jumps = Vec::new();
+        let mut moves = Vec::new();
+        if positions.iter().any(|&(x, y)| self.can_capture(x, y)) {
+            let captures = self.all_captures(color);
+            let max_len = captures.iter().map(|jc| jc.len()).max().unwrap_or(0);
+            jumps = self.all_captures(color)
+                .into_iter()
+                .filter(|jc| jc.len() == max_len)
+                .collect();
+        }
+        if positions.iter().any(|&(x, y)| self.can_move(x, y)) {
+            moves = self.all_moves(color)
+                .into_iter()
+                .collect();
+        }
+        (jumps, moves)
+    }
+
     // moves
 
     pub fn can_move(&self, x: u8, y: u8) -> bool {
@@ -189,7 +212,7 @@ impl CheckersController {
         }
     }
 
-    pub fn get_moves_at(&self, x: u8, y: u8) -> Vec<Move> {
+    pub fn moves_at(&self, x: u8, y: u8) -> Vec<Move> {
         let figure = self.board.at(x, y);
         if figure.is_none() { return Vec::new(); }
         match figure.unwrap() {
@@ -284,20 +307,41 @@ impl CheckersController {
         ((self.board.flags >> shift) & 1) == 1
     }
 
-    pub fn get_all_moves(&self, color: CheckersColor) -> Vec<Move> {
+    pub fn all_moves(&self, color: CheckersColor) -> Vec<Move> {
         let mut ret = Vec::new();
         let positions = match color {
             CheckersColor::White => self.get_white_pieces_position(),
             CheckersColor::Black => self.get_black_pieces_position(),
         };
         for (x, y) in positions {
-           let mut figure_moves = self.get_moves_at(x, y);
+           let mut figure_moves = self.moves_at(x, y);
             ret.append(&mut figure_moves);
         }
         ret
     }
 
     // captures
+
+    pub fn all_captures(&self, color: CheckersColor) -> Vec<JumpChain> {
+        let mut ret = Vec::new();
+        let positions = match color {
+            CheckersColor::White => self.get_white_pieces_position(),
+            CheckersColor::Black => self.get_black_pieces_position(),
+        };
+        for (x, y) in positions {
+            let mut chains = self.captures_at(x, y);
+            ret.append(&mut chains);
+        }
+        ret
+    }
+
+    pub fn can_capture(&self, x: u8, y: u8) -> bool {
+        match self.board.at(x, y) {
+            None => false,
+            Some(Figure::Pawn(_)) => !self.possible_pawn_jumps_at(x, y).is_empty(),
+            Some(Figure::Queen(_)) => !self.possible_queen_jumps_at(x, y).is_empty()
+        }
+    }
     pub fn captures_at(&self, x: u8, y: u8) -> Vec<JumpChain> {
         let mut ret = Vec::new();
         self.capture_path(x, y, &mut Vec::new(), &mut ret);
@@ -444,6 +488,12 @@ impl CheckersController {
 
 pub struct JumpChain(Vec<Jump>);
 
+impl JumpChain {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl Display for JumpChain {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.0.is_empty() { return write!(f, "[]") };
@@ -458,5 +508,15 @@ impl Display for JumpChain {
         };
         ret = format!("{ret}{}", alias(x_end, y_end));
         write!(f, "{}", ret)
+    }
+}
+
+impl CheckersAction for JumpChain {
+    fn start_position(&self) -> (u8, u8) {
+        self.0[0].start_position()
+    }
+
+    fn end_position(&self) -> (u8, u8) {
+        self.0.last().unwrap().end_position()
     }
 }

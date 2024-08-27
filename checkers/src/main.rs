@@ -26,21 +26,27 @@ macro_rules! jump {
 fn main() {
     let board = Board::from_str_repr(
         "W.......\n\
-              .b.b.b..\n\
+              .B.b.b..\n\
               ........\n\
-              ........\n\
+              ...w....\n\
               ....b.b.\n\
               .b......\n\
               ....b...\n\
               ........",
         '.', ('w', 'W'), ('b', 'B')
     );
+    let board = Board::default();
     let mut controller = CheckersController::new(board);
 
     println!("{}", controller.board);
+    let (jumps, moves) = controller.options(CheckersColor::White);
+    for jump in jumps {
+        println!("{jump}");
+    }
+    println!();
 
-    for captures in controller.captures_at(0, 0) {
-        println!("{captures}");
+    for move_ in moves {
+        println!("{move_}");
     }
 
 }
