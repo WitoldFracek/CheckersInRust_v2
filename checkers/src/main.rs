@@ -25,25 +25,31 @@ macro_rules! jump {
 
 fn main() {
     let board = Board::from_str_repr(
-        "w.w.w.w.\n\
-              .w.w.w.w\n\
+        "W.......\n\
+              .b......\n\
+              ......b.\n\
+              ...b....\n\
               ........\n\
+              ...b.b..\n\
               ........\n\
-              ....w.w.\n\
-              .....B..\n\
-              B.b.b.b.\n\
-              .b.b.b.b",
+              ........",
         '.', ('w', 'W'), ('b', 'B')
     );
     let mut controller = CheckersController::new(board);
 
     println!("{}", controller.board);
 
-    controller.execute_jump(&jump!(F6 -- E5 -> C3));
-    println!("{}", controller.board);
+    // controller.execute_jump(&jump!(A1 -- B2 -> C3));
+    // println!("{}", controller.was_jumped_over(1, 1));
+    // println!("{}", controller.board);
 
-    let mut controller = CheckersController::new(board);
-    controller.execute_move(&mov!(G5 -> F6));
-    println!("{}", controller.board);
+    // for j in controller.possible_queen_jumps_at(0, 0) {
+    //     println!("{j}");
+    // }
+
+    for captures in controller.captures_at(0, 0) {
+        captures.iter().for_each(|j| println!("{j}"));
+        println!();
+    }
 
 }

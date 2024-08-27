@@ -280,8 +280,6 @@ impl CheckersController {
     }
 
     pub fn was_jumped_over(&self, x: u8, y: u8) -> bool {
-        let figure = self.board.at(x, y);
-        if figure.is_none() { return false; }
         let shift = Board::calculate_shift(x, y);
         ((self.board.flags >> shift) & 1) == 1
     }
@@ -314,31 +312,50 @@ impl CheckersController {
         ret
     }
 
-    pub fn captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
+    pub fn captures_at(&self, x: u8, y: u8) -> Vec<Vec<Jump>> {
         let mut ret = Vec::new();
-        let mut controller = Self::new(self.board);
-        let captures = match controller.board.at(x, y) {
-            None => vec![],
-            Some(Figure::Pawn(_)) => controller.pawn_captures_beginnings_at(x, y),
-            Some(Figure::Queen(_)) => controller.queen_captures_at(x, y),
-        };
+        self.capture_path(x, y, &mut Vec::new(), &mut ret);
+        ret
+    }
+
+    fn capture_path(&self, x: u8, y: u8, path: &mut Vec<Jump>, all_paths: &mut Vec<Vec<Jump>>) {
+        let possible_jumps = self.possible_captures_at(x, y);
+        if possible_jumps.is_empty() {
+            if !path.is_empty() {
+                all_paths.push(path.clone());
+            }
+            return;
+        }
+        for jump in possible_jumps {
+            path.push(jump);
+            let mut controller = Self::new(self.board);
+            controller.execute_jump(&jump);
+            let (x_end, y_end) = jump.end_position();
+            controller.capture_path(x_end, y_end, path, all_paths);
+            path.pop();
+        }
+    }
+
+    pub fn possible_captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
+        match self.board.at(x, y) {
+            None => Vec::new(),
+            Some(Figure::Pawn(_)) => self.possible_pawn_jumps_at(x, y),
+            Some(Figure::Queen(_)) => self.possible_queen_jumps_at(x, y),
+        }
     }
 
     pub fn tuple_pawn_captures_at(&self, coords: (u8, u8)) -> Vec<Jump> {
-        self.pawn_captures_beginnings_at(coords.0, coords.1)
+        self.possible_pawn_jumps_at(coords.0, coords.1)
     }
 
-    pub fn pawn_captures_beginnings_at(&self, x: u8, y: u8) -> Vec<Jump> {
+    pub fn possible_pawn_jumps_at(&self, x: u8, y: u8) -> Vec<Jump> {
         let pawn = self.board.at(x, y);
         if pawn.is_none() { return Vec::new(); }
         let pawn = pawn.unwrap();
         if pawn.is_queen() { return Vec::new(); }
-        let (d1, d2) = match pawn.color() {
-            CheckersColor::White => (Self::diagonal(x as i8, y as i8, 1, 1), Self::diagonal(x as i8, y as i8, -1, 1)),
-            CheckersColor::Black => (Self::diagonal(x as i8, y as i8, 1, -1), Self::diagonal(x as i8, y as i8, -1, -1)),
-        };
+        let (d1, d2, d3, d4) = Self::diagonals(x as i8, y as i8);
         let mut ret = Vec::new();
-        for diagonal in [d1, d2] {
+        for diagonal in [d1, d2, d3, d4] {
             if diagonal.len() >= 2 {
                 let over = diagonal[0];
                 let end = diagonal[1];
@@ -353,10 +370,10 @@ impl CheckersController {
     }
 
     pub fn tuple_queen_captures_at(&self, coords: (u8, u8)) -> Vec<Jump> {
-        self.queen_captures_at(coords.0, coords.1)
+        self.possible_queen_jumps_at(coords.0, coords.1)
     }
 
-    pub fn queen_captures_at(&self, x: u8, y: u8) -> Vec<Jump> {
+    pub fn possible_queen_jumps_at(&self, x: u8, y: u8) -> Vec<Jump> {
         let queen = self.board.at(x, y);
         if queen.is_none() { return Vec::new(); }
         let queen = queen.unwrap();
@@ -372,12 +389,17 @@ impl CheckersController {
                     enemy_index = i;
                     break;
                 }
+                if self.was_jumped_over(x_over, y_over) {
+                    break;
+                }
             }
             if enemy_index != 8 {
                 let (x_over, y_over) = diagonal[enemy_index];
-                for &(x_end, y_end) in diagonal.iter().skip(enemy_index) {
+                for &(x_end, y_end) in diagonal.iter().skip(enemy_index + 1) {
                     if self.is_square_free(x_end, y_end) {
                         ret.push(Jump::new(x, y, x_over, y_over, x_end, y_end))
+                    } else {
+                        break;
                     }
                 }
             }
