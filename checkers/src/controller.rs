@@ -507,6 +507,7 @@ impl CheckersController {
     }
 }
 
+#[derive(Debug)]
 pub struct JumpChain(Vec<Jump>);
 
 impl JumpChain {

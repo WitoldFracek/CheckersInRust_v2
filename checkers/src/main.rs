@@ -2,7 +2,7 @@ use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};
 use crate::game::ai::{BoardEstimator, CountEstimator};
-use crate::game::player::{DummyBot, HumanPlayer};
+use crate::game::player::{DummyBot, HumanPlayer, MinMaxBot};
 
 mod board;
 mod controller;
@@ -34,55 +34,17 @@ macro_rules! pos {
 }
 
 
-fn main() {
-    let board = Board::from_str_repr(
-        "........\n\
-              ........\n\
-              ...b....\n\
-              ......b.\n\
-              .b.....w\n\
-              w.......\n\
-              ........\n\
-              ........",
-        '.', ('w', 'W'), ('b', 'B')
+fn main() { let board = Board::default();
+    let controller = CheckersController::new(board);
+    let human = HumanPlayer::new();
+    let dummy = DummyBot::new();
+    let minmax1 = MinMaxBot::new(CountEstimator::new(1.0, 3.0), 8);
+    let minmax2 = MinMaxBot::new(CountEstimator::new(1.0, 3.0), 3);
+    let mut game = Game::new(
+        controller,
+        minmax1,
+        minmax2
     );
-    let board = Board::from_alias_positions(&vec![
-        pos!(B8, BP),
-        pos!(D8, BP),
-        pos!(F8, BP),
-        pos!(H8, BP),
-        pos!(A7, BP),
-        pos!(C7, BP),
-        pos!(E7, BP),
-        pos!(G7, BP),
-        pos!(B6, BP),
-        pos!(H6, BP),
-        pos!(G5, BP),
-
-        pos!(A1, WP),
-        pos!(C1, WP),
-        pos!(E1, WP),
-        pos!(G1, WP),
-        pos!(B2, WP),
-        pos!(D2, WP),
-        pos!(F2, WP),
-        pos!(H2, WP),
-        pos!(G3, WP),
-        pos!(C3, WP),
-        pos!(C5, WP),
-    ]);
-
-
-    let board = Board::default();
-    println!("{}", CountEstimator::new(1.0, 3.0).score(&board, CheckersColor::Black))
-    // let controller = CheckersController::new(board);
-    // let mut game = Game::new(
-    //     controller,
-    //     HumanPlayer::new(),
-    //     DummyBot::new()
-    // );
-    // let winner = game.run();
-    // println!("Winner: {winner:?}");
-
-
+    let winner = game.run();
+    println!("Winner: {winner:?}");
 }
