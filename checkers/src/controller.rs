@@ -520,7 +520,7 @@ impl Display for JumpChain {
         if self.0.is_empty() { return write!(f, "[]") };
         let (x_start, y_start) = self.0.first().unwrap().start_position();
         let mut ret = format!("{} -> ", alias(x_start, y_start));
-        let (mut x_end, mut y_end) = (0, 0);
+        let (mut x_end, mut y_end) = self.0.first().unwrap().end_position();
         for jump in self.0.iter().skip(1) {
             let (x_start, y_start) = jump.start_position();
             let al = alias(x_start, y_start);
