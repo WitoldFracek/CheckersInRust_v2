@@ -183,8 +183,24 @@ impl Board {
         (&self.occupation & !&self.color).count_ones()
     }
 
+    pub fn num_white_paws(&self) -> u32 {
+        (&self.occupation & !&self.color & !&self.figure).count_ones()
+    }
+
+    pub fn num_white_queens(&self) -> u32 {
+        (&self.occupation & !&self.color & &self.figure).count_ones()
+    }
+
     pub fn num_black_figures(&self) -> u32 {
         (&self.occupation & &self.color).count_ones()
+    }
+
+    pub fn num_black_pawns(&self) -> u32 {
+        (&self.occupation & &self.color & !&self.figure).count_ones()
+    }
+
+    pub fn num_black_queens(&self) -> u32 {
+        (&self.occupation & &self.color & &self.figure).count_ones()
     }
 
 }

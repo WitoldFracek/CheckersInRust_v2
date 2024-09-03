@@ -1,6 +1,8 @@
 use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
-use crate::game::{DummyBot, Game, HumanPlayer};
+use crate::game::{Game};
+use crate::game::ai::{BoardEstimator, CountEstimator};
+use crate::game::player::{DummyBot, HumanPlayer};
 
 mod board;
 mod controller;
@@ -69,23 +71,18 @@ fn main() {
         pos!(C3, WP),
         pos!(C5, WP),
     ]);
-    println!("{board}");
-    let mut controller = CheckersController::new(board);
-    let (cap, mov) = controller.options(CheckersColor::Black);
-    for jc in cap {
-        println!("{jc}");
-    }
 
 
     let board = Board::default();
-    let controller = CheckersController::new(board);
-    let mut game = Game::new(
-        controller,
-        HumanPlayer::new(),
-        DummyBot::new()
-    );
-    let winner = game.run();
-    println!("Winner: {winner:?}");
+    println!("{}", CountEstimator::new(1.0, 3.0).score(&board, CheckersColor::Black))
+    // let controller = CheckersController::new(board);
+    // let mut game = Game::new(
+    //     controller,
+    //     HumanPlayer::new(),
+    //     DummyBot::new()
+    // );
+    // let winner = game.run();
+    // println!("Winner: {winner:?}");
 
 
 }
