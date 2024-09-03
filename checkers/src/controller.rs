@@ -441,6 +441,12 @@ impl CheckersController {
         ret
     }
 
+    pub fn execute_capture(&mut self, jump_chain: &JumpChain) {
+        for jump in &jump_chain.0 {
+            self.execute_jump(jump);
+        }
+    }
+
     pub fn execute_jump(&mut self, jump: &Jump) {
         let (x_over, y_over) = jump.over_position();
         let ((x_start, y_start), (x_end, y_end)) = jump.start_end();
@@ -483,6 +489,21 @@ impl CheckersController {
             y += y_step;
         }
         ret
+    }
+
+    pub fn promote(&mut self) {
+        for (x, y) in [(1, 7), (3, 7), (5, 7), (7, 7)] {
+            let figure = self.board.at(x, y);
+            if let Some(Figure::Pawn(CheckersColor::White)) = figure {
+                self.board.set(x, y, Some(Figure::Queen(CheckersColor::White)))
+            }
+        }
+        for (x, y) in [(0, 0), (2, 0), (4, 0), (6, 0)] {
+            let figure = self.board.at(x, y);
+            if let Some(Figure::Pawn(CheckersColor::Black)) = figure {
+                self.board.set(x, y, Some(Figure::Queen(CheckersColor::Black)))
+            }
+        }
     }
 }
 
