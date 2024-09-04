@@ -123,7 +123,7 @@ pub mod player {
 
     impl <T: BoardEstimator> MinMaxBot<T> {
         fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor, maximising: bool) -> f64 {
-            if depth == 0 { return self.estimator.score(&controller.board, current_color) * if maximising {1.0} else {-1.0}; }
+            if depth == 0 { return self.estimator.score(&controller.board, current_color); }// * if maximising {1.0} else {-1.0}; }
             let (jumps, moves) = controller.options(current_color);
             if !jumps.is_empty() {
                 return self.minmax_jumps(controller.board, &jumps, depth, current_color, maximising);
@@ -226,12 +226,13 @@ pub mod player {
 
 pub mod ai {
     use crate::board::Board;
-    use crate::controller::CheckersColor;
+    use crate::controller::{CheckersColor, CheckersController};
 
     pub trait BoardEstimator {
         fn score(&self, board: &Board, color: CheckersColor) -> f64;
     }
 
+    #[derive(Copy, Clone)]
     pub struct CountEstimator {
         pawn_weight: f64,
         queen_weight: f64
@@ -249,6 +250,40 @@ pub mod ai {
                 CheckersColor::Black => (board.num_black_pawns(), board.num_black_queens())
             };
             pawns as f64 * self.pawn_weight + queens as f64 * self.queen_weight
+        }
+    }
+
+    pub struct WeightMatrixEstimator {
+        board_weights: [[f64; 8]; 8],
+        pawn_weight: f64,
+        queen_weight: f64
+    }
+
+    impl WeightMatrixEstimator {
+        pub fn new(board_weights: [[f64; 8]; 8], pawn_weight: f64, queen_weight: f64) -> Self {
+            Self { board_weights, pawn_weight, queen_weight }
+        }
+    }
+
+    impl BoardEstimator for WeightMatrixEstimator {
+        fn score(&self, board: &Board, color: CheckersColor) -> f64 {
+            let controller = CheckersController::new(*board);
+            let positions = match color {
+                CheckersColor::White => controller.get_white_pieces_position(),
+                CheckersColor::Black => controller.get_black_pieces_position(),
+            };
+            let mut score = 0.0;
+            for (x, y) in positions {
+                let figure = board.at(x, y);
+                if let Some(figure) = figure {
+                    if figure.is_queen() {
+                        score += self.board_weights[x as usize][y as usize] * self.queen_weight;
+                    } else {
+                        score += self.board_weights[x as usize][y as usize] * self.pawn_weight;
+                    }
+                }
+            }
+            score
         }
     }
 }
@@ -276,7 +311,7 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
         while let Ok(_) = self.step() {
             self.controller.promote();
             println!("{}", self.controller.board);
-            thread::sleep(Duration::from_millis(1000));
+            thread::sleep(Duration::from_millis(100));
             if self.controller.board.num_white_figures() == 0 {
                 return CheckersColor::Black;
             }

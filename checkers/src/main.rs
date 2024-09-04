@@ -1,7 +1,7 @@
 use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};
-use crate::game::ai::{BoardEstimator, CountEstimator};
+use crate::game::ai::{BoardEstimator, CountEstimator, WeightMatrixEstimator};
 use crate::game::player::{DummyBot, HumanPlayer, MinMaxBot};
 
 mod board;
@@ -36,14 +36,29 @@ macro_rules! pos {
 
 fn main() { let board = Board::default();
     let controller = CheckersController::new(board);
+
+    let count_estimator = CountEstimator::new(1.0, 3.0);
+    let matrix_estimator = WeightMatrixEstimator::new(
+        [
+            [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+            [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
+            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+            [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
+            [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+        ], 1.0, 3.0
+    );
+
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(CountEstimator::new(1.0, 3.0), 8);
-    let minmax2 = MinMaxBot::new(CountEstimator::new(1.0, 3.0), 3);
+    let minmax1 = MinMaxBot::new(matrix_estimator, 8);
+    let minmax2 = MinMaxBot::new(count_estimator, 3);
     let mut game = Game::new(
         controller,
-        minmax1,
-        minmax2
+        human,
+        minmax1
     );
     let winner = game.run();
     println!("Winner: {winner:?}");
