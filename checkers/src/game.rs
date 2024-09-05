@@ -123,7 +123,7 @@ pub mod player {
 
     impl <T: BoardEstimator> MinMaxBot<T> {
         fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor, maximising: bool) -> f64 {
-            if depth == 0 { return self.estimator.score(&controller.board, current_color); }// * if maximising {1.0} else {-1.0}; }
+            if depth == 0 { return self.estimator.score(&controller.board, self.color); }// * if maximising {1.0} else {-1.0}; }
             let (jumps, moves) = controller.options(current_color);
             if !jumps.is_empty() {
                 return self.minmax_jumps(controller.board, &jumps, depth, current_color, maximising);
@@ -143,7 +143,7 @@ pub mod player {
             for capture in captures {
                 let mut controller = CheckersController::new(board);
                 controller.execute_capture(capture);
-                let est = self.minmax(&controller, depth - 1, current_color.opposite(), !maximizing);
+                let est = self.minmax(&controller, depth - 1, current_color.opposite(), maximizing);
                 if maximizing && est > current {
                     current = est;
                 } else if !maximizing && est < current {
@@ -158,7 +158,7 @@ pub mod player {
             for move_ in moves {
                 let mut controller = CheckersController::new(board);
                 controller.execute_move(move_);
-                let est = self.minmax(&controller, depth - 1, current_color.opposite(), !maximizing);
+                let est = self.minmax(&controller, depth - 1, current_color.opposite(), maximizing);
                 if maximizing && est > current {
                     current = est;
                 } else if !maximizing && est < current {
@@ -179,7 +179,7 @@ pub mod player {
             for (i, move_) in moves.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_move(move_);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), false);
+                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), true);
                 if eval > best_eval {
                     best_eval = eval;
                     best_moves.clear();
@@ -201,7 +201,7 @@ pub mod player {
             for (i, capture) in captures.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_capture(capture);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), false);
+                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), true);
                 if eval > best_eval {
                     best_eval = eval;
                     best_captures.clear();

@@ -53,7 +53,7 @@ fn main() { let board = Board::default();
 
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(matrix_estimator, 8);
+    let minmax1 = MinMaxBot::new(count_estimator, 8);
     let minmax2 = MinMaxBot::new(count_estimator, 3);
     let mut game = Game::new(
         controller,
