@@ -1,6 +1,7 @@
+use std::fmt::Display;
 use std::thread;
 use std::time::Duration;
-use crate::controller::{CheckersController, CheckersColor};
+use crate::controller::{CheckersController, CheckersColor, CheckersAction};
 use rand::seq::SliceRandom;
 use crate::game::player::Player;
 
@@ -10,11 +11,11 @@ pub mod player {
     use rand::seq::SliceRandom;
     use crate::board::Board;
     use crate::controller::{CheckersColor, CheckersController, JumpChain, Move};
-    use crate::game::ai::BoardEstimator;
+    use crate::game::estimators::BoardEstimator;
 
     pub trait Player {
-        fn move_piece<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move;
-        fn capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain;
+        fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move;
+        fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain;
         fn get_color(&self) -> CheckersColor;
         fn set_color(&mut self, color: CheckersColor);
     }
@@ -29,13 +30,13 @@ pub mod player {
     }
 
     impl Player for DummyBot {
-        fn move_piece<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
+        fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
             let m = moves.choose(&mut rand::thread_rng()).unwrap();
             println!("{m}");
             m
         }
 
-        fn capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
+        fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
             let c = captures.choose(&mut rand::thread_rng()).unwrap();
             println!("{c}");
             c
@@ -61,7 +62,7 @@ pub mod player {
     }
 
     impl Player for HumanPlayer {
-        fn move_piece<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
+        fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
             for (i, move_) in moves.iter().enumerate() {
                 println!("{i}. {move_}");
             }
@@ -69,7 +70,7 @@ pub mod player {
             &moves[index]
         }
 
-        fn capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
+        fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
             for (i, jump_chain) in captures.iter().enumerate() {
                 println!("{i}. {jump_chain}");
             }
@@ -122,46 +123,38 @@ pub mod player {
     }
 
     impl <T: BoardEstimator> MinMaxBot<T> {
-        fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor, maximising: bool) -> f64 {
-            if depth == 0 { return self.estimator.score(&controller.board, self.color); }// * if maximising {1.0} else {-1.0}; }
+        fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor) -> f64 {
+            if depth == 0 { return self.estimator.score(&controller.board, self.color); }
             let (jumps, moves) = controller.options(current_color);
             if !jumps.is_empty() {
-                return self.minmax_jumps(controller.board, &jumps, depth, current_color, maximising);
+                return self.minmax_jumps(controller.board, &jumps, depth, current_color);
             }
             if !moves.is_empty() {
-                return self.minmax_moves(controller.board, &moves, depth, current_color, maximising);
+                return self.minmax_moves(controller.board, &moves, depth, current_color);
             }
-            if maximising {
-                f64::MIN
-            } else {
-                f64::MAX
-            }
+            f64::MIN
         }
 
-        fn minmax_jumps(&self, board: Board, captures: &[JumpChain], depth: usize, current_color: CheckersColor, maximizing: bool) -> f64 {
-            let mut current = if maximizing {f64::MIN} else {f64::MAX};
+        fn minmax_jumps(&self, board: Board, captures: &[JumpChain], depth: usize, current_color: CheckersColor) -> f64 {
+            let mut current = f64::MIN;
             for capture in captures {
                 let mut controller = CheckersController::new(board);
                 controller.execute_capture(capture);
-                let est = self.minmax(&controller, depth - 1, current_color.opposite(), maximizing);
-                if maximizing && est > current {
-                    current = est;
-                } else if !maximizing && est < current {
+                let est = self.minmax(&controller, depth - 1, current_color.opposite());
+                if  est > current {
                     current = est;
                 }
             }
             current
         }
 
-        fn minmax_moves(&self, board: Board, moves: &[Move], depth: usize, current_color: CheckersColor, maximizing: bool) -> f64 {
-            let mut current = if maximizing {f64::MIN} else {f64::MAX};
+        fn minmax_moves(&self, board: Board, moves: &[Move], depth: usize, current_color: CheckersColor) -> f64 {
+            let mut current = f64::MIN;
             for move_ in moves {
                 let mut controller = CheckersController::new(board);
                 controller.execute_move(move_);
-                let est = self.minmax(&controller, depth - 1, current_color.opposite(), maximizing);
-                if maximizing && est > current {
-                    current = est;
-                } else if !maximizing && est < current {
+                let est = self.minmax(&controller, depth - 1, current_color.opposite());
+                if est > current {
                     current = est;
                 }
             }
@@ -170,7 +163,7 @@ pub mod player {
     }
 
     impl <T: BoardEstimator> Player for MinMaxBot<T> {
-        fn move_piece<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
+        fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
             if moves.len() == 1 {
                 return moves.first().unwrap()
             }
@@ -179,7 +172,7 @@ pub mod player {
             for (i, move_) in moves.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_move(move_);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), true);
+                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
                 if eval > best_eval {
                     best_eval = eval;
                     best_moves.clear();
@@ -192,7 +185,7 @@ pub mod player {
             &moves[index]
         }
 
-        fn capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
+        fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
             if captures.len() == 1 {
                 return captures.first().unwrap()
             }
@@ -201,7 +194,7 @@ pub mod player {
             for (i, capture) in captures.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_capture(capture);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), true);
+                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
                 if eval > best_eval {
                     best_eval = eval;
                     best_captures.clear();
@@ -224,7 +217,7 @@ pub mod player {
     }
 }
 
-pub mod ai {
+pub mod estimators {
     use crate::board::Board;
     use crate::controller::{CheckersColor, CheckersController};
 
@@ -308,7 +301,7 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
 
     pub fn run(&mut self) -> CheckersColor {
         println!("{}", self.controller.board);
-        while let Ok(_) = self.step() {
+        while let Some(_) = self.step() {
             self.controller.promote();
             println!("{}", self.controller.board);
             thread::sleep(Duration::from_millis(100));
@@ -319,30 +312,30 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
                 return CheckersColor::White;
             }
         }
-        panic!()
+        self.current_player.opposite()
     }
 
-    pub fn step(&mut self) -> Result<(), ()> {
+    pub fn step(&mut self) -> Option<()> {
         let (captures, moves) = self.controller.options(self.current_player);
         if !captures.is_empty() {
             let capture = match self.current_player {
-                CheckersColor::White => self.white_player.capture(&captures, self.controller.board),
-                CheckersColor::Black => self.black_player.capture(&captures, self.controller.board),
+                CheckersColor::White => self.white_player.choose_capture(&captures, self.controller.board),
+                CheckersColor::Black => self.black_player.choose_capture(&captures, self.controller.board),
             };
             self.controller.execute_capture(capture);
             self.controller.board.flags = 0;
             self.current_player = self.current_player.opposite();
-            return Ok(());
+            return Some(());
         }
         if !moves.is_empty() {
             let move_ = match self.current_player {
-                CheckersColor::White => self.white_player.move_piece(&moves, self.controller.board),
-                CheckersColor::Black => self.black_player.move_piece(&moves, self.controller.board),
+                CheckersColor::White => self.white_player.choose_move(&moves, self.controller.board),
+                CheckersColor::Black => self.black_player.choose_move(&moves, self.controller.board),
             };
             self.controller.execute_move(move_);
             self.current_player = self.current_player.opposite();
-            return Ok(());
+            return Some(());
         }
-        Err(())
+        None
     }
 }
