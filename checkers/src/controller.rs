@@ -140,16 +140,33 @@ impl Display for Jump {
 }
 
 pub struct CheckersController {
-    pub board: Board
+    pub board: Board,
+    white_queen_idle_moves: u8,
+    black_queen_idle_moves: u8,
 }
 
 impl CheckersController {
 
     pub fn new(board: Board) -> Self {
         Self {
-            board
+            board,
+            white_queen_idle_moves: 0,
+            black_queen_idle_moves: 0
         }
     }
+
+    pub fn with_idle_moves(board: Board, wqim: u8, bqim: u8) -> Self {
+        Self {
+            board,
+            white_queen_idle_moves: wqim,
+            black_queen_idle_moves: bqim
+        }
+    }
+
+    pub fn get_white_queen_idle_moves(&self) -> u8 { self.white_queen_idle_moves }
+
+    pub fn get_black_queen_idle_moves(&self) -> u8 { self.black_queen_idle_moves }
+
     pub fn get_white_pieces_position(&self) -> Vec<(u8, u8)> {
         let mut ret = Vec::new();
         for y in 0..8 {
@@ -460,6 +477,12 @@ impl CheckersController {
     pub fn execute_move(&mut self, move_: &Move) {
         let ((x_start, y_start), (x_end, y_end)) = move_.start_end();
         let piece = self.board.at(x_start, y_start).unwrap();
+        match piece {
+            Figure::Queen(CheckersColor::White) => self.white_queen_idle_moves += 1,
+            Figure::Queen(CheckersColor::Black) => self.black_queen_idle_moves += 1,
+            Figure::Pawn(CheckersColor::White) => self.white_queen_idle_moves = 0,
+            Figure::Pawn(CheckersColor::Black) => self.black_queen_idle_moves = 0,
+        }
         self.board.set(x_start, y_start, None);
         self.board.set(x_end, y_end, Some(piece));
     }

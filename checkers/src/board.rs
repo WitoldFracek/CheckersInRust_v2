@@ -172,10 +172,24 @@ impl Board {
         self.flags = 0;
     }
 
-    pub fn num_pawns(&self, color: CheckersColor) -> u32 {
+    pub fn num_figures(&self, color: CheckersColor) -> u32 {
         match color {
             CheckersColor::White => self.num_white_figures(),
             CheckersColor::Black => self.num_black_figures(),
+        }
+    }
+
+    pub fn num_pawns(&self, color: CheckersColor) -> u32 {
+        match color {
+            CheckersColor::White => self.num_white_pawns(),
+            CheckersColor::Black => self.num_black_pawns(),
+        }
+    }
+
+    pub fn num_queens(&self, color: CheckersColor) -> u32 {
+        match color {
+            CheckersColor::White => self.num_white_queens(),
+            CheckersColor::Black => self.num_black_queens(),
         }
     }
 
@@ -183,7 +197,7 @@ impl Board {
         (&self.occupation & !&self.color).count_ones()
     }
 
-    pub fn num_white_paws(&self) -> u32 {
+    pub fn num_white_pawns(&self) -> u32 {
         (&self.occupation & !&self.color & !&self.figure).count_ones()
     }
 

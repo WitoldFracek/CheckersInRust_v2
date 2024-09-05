@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::thread;
 use std::time::Duration;
-use crate::controller::{CheckersController, CheckersColor, CheckersAction};
+use crate::controller::{CheckersController, CheckersColor, CheckersAction, Figure};
 use rand::seq::SliceRandom;
 use crate::game::player::Player;
 
@@ -125,20 +125,31 @@ pub mod player {
     impl <T: BoardEstimator> MinMaxBot<T> {
         fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor) -> f64 {
             if depth == 0 { return self.estimator.score(&controller.board, self.color); }
+            let idle_moves = match self.color {
+                CheckersColor::White => controller.get_white_queen_idle_moves(),
+                CheckersColor::Black => controller.get_black_queen_idle_moves(),
+            };
+            if idle_moves > 8 {
+                return f64::MIN;
+            }
             let (jumps, moves) = controller.options(current_color);
             if !jumps.is_empty() {
-                return self.minmax_jumps(controller.board, &jumps, depth, current_color);
+                return self.minmax_jumps(controller, &jumps, depth, current_color);
             }
             if !moves.is_empty() {
-                return self.minmax_moves(controller.board, &moves, depth, current_color);
+                return self.minmax_moves(controller, &moves, depth, current_color);
             }
             f64::MIN
         }
 
-        fn minmax_jumps(&self, board: Board, captures: &[JumpChain], depth: usize, current_color: CheckersColor) -> f64 {
+        fn minmax_jumps(&self, controller: &CheckersController, captures: &[JumpChain], depth: usize, current_color: CheckersColor) -> f64 {
             let mut current = f64::MIN;
             for capture in captures {
-                let mut controller = CheckersController::new(board);
+                let mut controller = CheckersController::with_idle_moves(
+                    controller.board,
+                    controller.get_white_queen_idle_moves(),
+                    controller.get_black_queen_idle_moves()
+                );
                 controller.execute_capture(capture);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
                 if  est > current {
@@ -148,10 +159,14 @@ pub mod player {
             current
         }
 
-        fn minmax_moves(&self, board: Board, moves: &[Move], depth: usize, current_color: CheckersColor) -> f64 {
+        fn minmax_moves(&self, controller: &CheckersController, moves: &[Move], depth: usize, current_color: CheckersColor) -> f64 {
             let mut current = f64::MIN;
             for move_ in moves {
-                let mut controller = CheckersController::new(board);
+                let mut controller = CheckersController::with_idle_moves(
+                    controller.board,
+                    controller.get_white_queen_idle_moves(),
+                    controller.get_black_queen_idle_moves(),
+                );
                 controller.execute_move(move_);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
                 if est > current {
@@ -181,6 +196,7 @@ pub mod player {
                     best_moves.push(i);
                 }
             }
+            println!("Bot best: {best_eval}");
             let index = *best_moves.choose(&mut rand::thread_rng()).unwrap();
             &moves[index]
         }
@@ -203,6 +219,7 @@ pub mod player {
                     best_captures.push(i);
                 }
             }
+            println!("Bot best: {best_eval}");
             let index = *best_captures.choose(&mut rand::thread_rng()).unwrap();
             &captures[index]
         }
@@ -238,11 +255,13 @@ pub mod estimators {
 
     impl BoardEstimator for CountEstimator {
         fn score(&self, board: &Board, maximizing_color: CheckersColor) -> f64 {
-            let (pawns, queens) = match maximizing_color {
-                CheckersColor::White => (board.num_white_paws(), board.num_white_queens()),
-                CheckersColor::Black => (board.num_black_pawns(), board.num_black_queens())
-            };
-            pawns as f64 * self.pawn_weight + queens as f64 * self.queen_weight
+            let pawns = board.num_pawns(maximizing_color);
+            let queens = board.num_queens(maximizing_color);
+            let enemy_pawns = board.num_pawns(maximizing_color.opposite());
+            let enemy_queens = board.num_queens(maximizing_color.opposite());
+            let positive = pawns as f64 * self.pawn_weight + queens as f64 * self.queen_weight;
+            let negative = enemy_pawns as f64 * self.pawn_weight + enemy_queens as f64 * self.queen_weight;
+            positive - negative
         }
     }
 
@@ -286,7 +305,7 @@ pub struct Game<WP, BP> {
     controller: CheckersController,
     white_player : WP,
     black_player: BP,
-    current_player: CheckersColor
+    current_player: CheckersColor,
 }
 
 
@@ -295,7 +314,10 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
         white_player.set_color(CheckersColor::White);
         black_player.set_color(CheckersColor::Black);
         Self {
-            controller, white_player, black_player, current_player: CheckersColor::White
+            controller,
+            white_player,
+            black_player,
+            current_player: CheckersColor::White
         }
     }
 
@@ -304,7 +326,6 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
         while let Some(_) = self.step() {
             self.controller.promote();
             println!("{}", self.controller.board);
-            thread::sleep(Duration::from_millis(100));
             if self.controller.board.num_white_figures() == 0 {
                 return CheckersColor::Black;
             }
@@ -316,6 +337,13 @@ impl <WP: Player, BP: Player> Game<WP, BP> {
     }
 
     pub fn step(&mut self) -> Option<()> {
+        let idle_moves = match self.current_player {
+            CheckersColor::White => self.controller.get_white_queen_idle_moves(),
+            CheckersColor::Black => self.controller.get_black_queen_idle_moves(),
+        };
+        if idle_moves > 8 {
+            return None
+        }
         let (captures, moves) = self.controller.options(self.current_player);
         if !captures.is_empty() {
             let capture = match self.current_player {
