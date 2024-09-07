@@ -54,10 +54,10 @@ fn main() { let board = Board::default();
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
     let minmax1 = MinMaxBot::new(count_estimator, 6);
-    let minmax2 = MinMaxBot::new(count_estimator, 2);
+    let minmax2 = MinMaxBot::new(count_estimator, 3);
     let mut game = Game::new(
         controller,
-        human,
+        minmax2,
         minmax1
     );
     let winner = game.run();

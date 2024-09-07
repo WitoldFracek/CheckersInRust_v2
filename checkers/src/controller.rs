@@ -15,6 +15,15 @@ impl CheckersColor {
     }
 }
 
+impl CheckersColor {
+    pub fn is_white(&self) -> bool {
+        match self {
+            CheckersColor::White => true,
+            _ => false
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Figure {
     Pawn(CheckersColor), Queen(CheckersColor)

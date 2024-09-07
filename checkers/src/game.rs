@@ -119,18 +119,22 @@ pub mod player {
     }
 
     impl <T> MinMaxBot<T> {
+
+        pub const MIN_SCORE: f64 = -1e10;
+        pub const MAX_SCORE: f64 = 1e10;
+
         pub fn new(estimator: T, depth: usize) -> Self { Self{estimator, depth, color: CheckersColor::White} }
     }
 
     impl <T: BoardEstimator> MinMaxBot<T> {
         fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor) -> f64 {
-            if depth == 0 { return self.estimator.score(&controller.board, self.color); }
+            if depth == 0 { return self.estimator.score(&controller.board); }
             let idle_moves = match self.color {
                 CheckersColor::White => controller.get_white_queen_idle_moves(),
                 CheckersColor::Black => controller.get_black_queen_idle_moves(),
             };
             if idle_moves > 8 {
-                return f64::MIN;
+                return if current_color.is_white() { Self::MIN_SCORE } else { Self::MAX_SCORE };
             }
             let (jumps, moves) = controller.options(current_color);
             if !jumps.is_empty() {
@@ -139,11 +143,11 @@ pub mod player {
             if !moves.is_empty() {
                 return self.minmax_moves(controller, &moves, depth, current_color);
             }
-            f64::MIN
+            if current_color.is_white() { Self::MIN_SCORE } else { Self::MAX_SCORE }
         }
 
         fn minmax_jumps(&self, controller: &CheckersController, captures: &[JumpChain], depth: usize, current_color: CheckersColor) -> f64 {
-            let mut current = f64::MIN;
+            let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
             for capture in captures {
                 let mut controller = CheckersController::with_idle_moves(
                     controller.board,
@@ -152,15 +156,21 @@ pub mod player {
                 );
                 controller.execute_capture(capture);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
-                if  est > current {
-                    current = est;
+                if current_color.is_white() {
+                    if est > current {
+                        current = est;
+                    }
+                } else {
+                    if est < current {
+                        current = est;
+                    }
                 }
             }
             current
         }
 
         fn minmax_moves(&self, controller: &CheckersController, moves: &[Move], depth: usize, current_color: CheckersColor) -> f64 {
-            let mut current = f64::MIN;
+            let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
             for move_ in moves {
                 let mut controller = CheckersController::with_idle_moves(
                     controller.board,
@@ -169,8 +179,14 @@ pub mod player {
                 );
                 controller.execute_move(move_);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
-                if est > current {
-                    current = est;
+                if current_color.is_white() {
+                    if est > current {
+                        current = est;
+                    }
+                } else {
+                    if est < current {
+                        current = est;
+                    }
                 }
             }
             current
@@ -183,20 +199,28 @@ pub mod player {
                 return moves.first().unwrap()
             }
             let mut best_moves = Vec::new();
-            let mut best_eval = f64::MIN;
+            let mut best_eval = if self.color.is_white() { f64::MIN } else { f64::MAX };
             for (i, move_) in moves.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_move(move_);
                 let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
-                if eval > best_eval {
-                    best_eval = eval;
-                    best_moves.clear();
-                    best_moves.push(i);
+                if self.color.is_white(){
+                    if eval > best_eval {
+                        best_eval = eval;
+                        best_moves.clear();
+                        best_moves.push(i);
+                    }
                 } else if (best_eval - eval).abs() < f64::EPSILON {
                     best_moves.push(i);
+                } else {
+                    if eval < best_eval {
+                        best_eval = eval;
+                        best_moves.clear();
+                        best_moves.push(i);
+                    }
                 }
             }
-            println!("Bot best: {best_eval}");
+            println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
             let index = *best_moves.choose(&mut rand::thread_rng()).unwrap();
             &moves[index]
         }
@@ -206,20 +230,28 @@ pub mod player {
                 return captures.first().unwrap()
             }
             let mut best_captures = Vec::new();
-            let mut best_eval = f64::MIN;
+            let mut best_eval = if self.color.is_white() { f64::MIN } else { f64::MAX };
             for (i, capture) in captures.iter().enumerate() {
                 let mut controller = CheckersController::new(board);
                 controller.execute_capture(capture);
                 let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
-                if eval > best_eval {
-                    best_eval = eval;
-                    best_captures.clear();
-                    best_captures.push(i);
+                if self.color.is_white() {
+                    if eval > best_eval {
+                        best_eval = eval;
+                        best_captures.clear();
+                        best_captures.push(i);
+                    }
                 } else if (best_eval - eval).abs() < f64::EPSILON {
                     best_captures.push(i);
+                } else {
+                    if eval < best_eval {
+                        best_eval = eval;
+                        best_captures.clear();
+                        best_captures.push(i);
+                    }
                 }
             }
-            println!("Bot best: {best_eval}");
+            println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
             let index = *best_captures.choose(&mut rand::thread_rng()).unwrap();
             &captures[index]
         }
@@ -239,7 +271,7 @@ pub mod estimators {
     use crate::controller::{CheckersColor, CheckersController};
 
     pub trait BoardEstimator {
-        fn score(&self, board: &Board, color: CheckersColor) -> f64;
+        fn score(&self, board: &Board) -> f64;
     }
 
     #[derive(Copy, Clone)]
@@ -254,11 +286,11 @@ pub mod estimators {
     }
 
     impl BoardEstimator for CountEstimator {
-        fn score(&self, board: &Board, maximizing_color: CheckersColor) -> f64 {
-            let pawns = board.num_pawns(maximizing_color);
-            let queens = board.num_queens(maximizing_color);
-            let enemy_pawns = board.num_pawns(maximizing_color.opposite());
-            let enemy_queens = board.num_queens(maximizing_color.opposite());
+        fn score(&self, board: &Board) -> f64 {
+            let pawns = board.num_pawns(CheckersColor::White);
+            let queens = board.num_queens(CheckersColor::White);
+            let enemy_pawns = board.num_pawns(CheckersColor::Black);
+            let enemy_queens = board.num_queens(CheckersColor::Black);
             let positive = pawns as f64 * self.pawn_weight + queens as f64 * self.queen_weight;
             let negative = enemy_pawns as f64 * self.pawn_weight + enemy_queens as f64 * self.queen_weight;
             positive - negative
@@ -278,24 +310,35 @@ pub mod estimators {
     }
 
     impl BoardEstimator for WeightMatrixEstimator {
-        fn score(&self, board: &Board, color: CheckersColor) -> f64 {
+        fn score(&self, board: &Board) -> f64 {
             let controller = CheckersController::new(*board);
-            let positions = match color {
-                CheckersColor::White => controller.get_white_pieces_position(),
-                CheckersColor::Black => controller.get_black_pieces_position(),
-            };
-            let mut score = 0.0;
-            for (x, y) in positions {
+            let white_positions = controller.get_white_pieces_position();
+            let black_positions = controller.get_black_pieces_position();
+
+            let mut white_score = 0.0;
+            for (x, y) in white_positions {
                 let figure = board.at(x, y);
                 if let Some(figure) = figure {
                     if figure.is_queen() {
-                        score += self.board_weights[x as usize][y as usize] * self.queen_weight;
+                        white_score += self.board_weights[x as usize][y as usize] * self.queen_weight;
                     } else {
-                        score += self.board_weights[x as usize][y as usize] * self.pawn_weight;
+                        white_score += self.board_weights[x as usize][y as usize] * self.pawn_weight;
                     }
                 }
             }
-            score
+
+            let mut black_score = 0.0;
+            for (x, y) in black_positions {
+                let figure = board.at(x, y);
+                if let Some(figure) = figure {
+                    if figure.is_queen() {
+                        black_score += self.board_weights[x as usize][y as usize] * self.queen_weight;
+                    } else {
+                        black_score += self.board_weights[x as usize][y as usize] * self.pawn_weight;
+                    }
+                }
+            }
+            white_score - black_score
         }
     }
 }
