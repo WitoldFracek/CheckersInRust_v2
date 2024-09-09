@@ -8,7 +8,9 @@ use crate::game::player::Player;
 pub mod player {
     use std::cmp::max;
     use std::io;
+    use std::sync::{Arc, Mutex};
     use rand::seq::SliceRandom;
+    use rayon::prelude::*;
     use crate::board::Board;
     use crate::controller::{CheckersColor, CheckersController, JumpChain, Move};
     use crate::game::estimators::BoardEstimator;
@@ -191,69 +193,87 @@ pub mod player {
             }
             current
         }
+
+        fn get_best_eval(&self, evals: &Vec<(usize, f64)>) -> f64 {
+            if self.color.is_white() {
+                evals
+                    .iter()
+                    .map(|(_, eval)| eval)
+                    .cloned()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(f64::MIN)
+            } else {
+                evals
+                    .iter()
+                    .map(|(_, eval)| eval)
+                    .cloned()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(f64::MAX)
+            }
+        }
+
+        fn get_best_indices(&self, evals: &Vec<(usize, f64)>, best: f64) -> Vec<usize> {
+            evals
+                .iter()
+                .filter(|(i, eval)| (eval - best).abs() < f64::EPSILON)
+                .map(|(i, _)| *i)
+                .collect()
+        }
+
+        fn get_at_indices<'a, U>(&'a self, indices: &[usize], values: &'a [U]) -> Vec<&U> {
+            let mut ret = Vec::with_capacity(indices.len());
+            for &i in indices {
+                ret.push(&values[i])
+            }
+            ret
+        }
     }
 
-    impl <T: BoardEstimator> Player for MinMaxBot<T> {
+    impl <T: BoardEstimator + Sync + Send> Player for MinMaxBot<T> {
         fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
             if moves.len() == 1 {
                 return moves.first().unwrap()
             }
-            let mut best_moves = Vec::new();
-            let mut best_eval = if self.color.is_white() { f64::MIN } else { f64::MAX };
-            for (i, move_) in moves.iter().enumerate() {
-                let mut controller = CheckersController::new(board);
-                controller.execute_move(move_);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
-                if self.color.is_white(){
-                    if eval > best_eval {
-                        best_eval = eval;
-                        best_moves.clear();
-                        best_moves.push(i);
-                    }
-                } else if (best_eval - eval).abs() < f64::EPSILON {
-                    best_moves.push(i);
-                } else {
-                    if eval < best_eval {
-                        best_eval = eval;
-                        best_moves.clear();
-                        best_moves.push(i);
-                    }
-                }
-            }
+
+            let moves_eval: Vec<(usize, f64)> = moves
+                .par_iter()
+                .enumerate()
+                .map(|(i, move_)| {
+                    let mut controller = CheckersController::new(board);
+                    controller.execute_move(move_);
+                    let eval = self.minmax(&controller, self.depth -1, self.get_color().opposite());
+                    (i, eval)
+                }).collect();
+            let best_eval = self.get_best_eval(&moves_eval);
+            let indices = self.get_best_indices(&moves_eval, best_eval);
+            let best_moves = self.get_at_indices(&indices, moves);
+
             println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
-            let index = *best_moves.choose(&mut rand::thread_rng()).unwrap();
-            &moves[index]
+            best_moves.choose(&mut rand::thread_rng()).unwrap()
         }
 
         fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
             if captures.len() == 1 {
                 return captures.first().unwrap()
             }
-            let mut best_captures = Vec::new();
-            let mut best_eval = if self.color.is_white() { f64::MIN } else { f64::MAX };
-            for (i, capture) in captures.iter().enumerate() {
-                let mut controller = CheckersController::new(board);
-                controller.execute_capture(capture);
-                let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
-                if self.color.is_white() {
-                    if eval > best_eval {
-                        best_eval = eval;
-                        best_captures.clear();
-                        best_captures.push(i);
-                    }
-                } else if (best_eval - eval).abs() < f64::EPSILON {
-                    best_captures.push(i);
-                } else {
-                    if eval < best_eval {
-                        best_eval = eval;
-                        best_captures.clear();
-                        best_captures.push(i);
-                    }
-                }
-            }
+
+            let captures_eval: Vec<(usize, f64)> = captures
+                .par_iter()
+                .enumerate()
+                .map(|(i, capture)| {
+                    let mut controller = CheckersController::new(board);
+                    controller.execute_capture(capture);
+                    let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite());
+                    (i, eval)
+                })
+                .collect();
+
+            let best_eval = self.get_best_eval(&captures_eval);
+            let indices = self.get_best_indices(&captures_eval, best_eval);
+            let best_captures = self.get_at_indices(&indices, captures);
+
             println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
-            let index = *best_captures.choose(&mut rand::thread_rng()).unwrap();
-            &captures[index]
+            best_captures.choose(&mut rand::thread_rng()).unwrap()
         }
 
         fn get_color(&self) -> CheckersColor {
