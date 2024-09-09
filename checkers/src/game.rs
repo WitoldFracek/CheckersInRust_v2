@@ -99,6 +99,9 @@ pub mod player {
                     continue;
                 }
                 let input = input.trim();
+                if input == "" {
+                    return 0;
+                }
                 let index = input.parse::<usize>();
                 if index.is_err() {
                     println!("unrecognised option \"{input}\"");
