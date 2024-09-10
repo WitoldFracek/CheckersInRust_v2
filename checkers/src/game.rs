@@ -120,7 +120,8 @@ pub mod player {
     pub struct MinMaxBot<T> {
         estimator: T,
         depth: usize,
-        color: CheckersColor
+        color: CheckersColor,
+        nodes_visited: Arc<Mutex<usize>>
     }
 
     impl <T> MinMaxBot<T> {
@@ -128,12 +129,18 @@ pub mod player {
         pub const MIN_SCORE: f64 = -1e10;
         pub const MAX_SCORE: f64 = 1e10;
 
-        pub fn new(estimator: T, depth: usize) -> Self { Self{estimator, depth, color: CheckersColor::White} }
+        pub fn new(estimator: T, depth: usize) -> Self { Self{estimator, depth, color: CheckersColor::White, nodes_visited: Arc::new(Mutex::new(0))} }
     }
 
     impl <T: BoardEstimator> MinMaxBot<T> {
         fn minmax(&self, controller: &CheckersController, depth: usize, current_color: CheckersColor) -> f64 {
-            if depth == 0 { return self.estimator.score(&controller.board); }
+            if depth == 0 {
+                {
+                    let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                    *nodes_visited += 1;
+                }
+                return self.estimator.score(&controller.board);
+            }
             let idle_moves = match self.color {
                 CheckersColor::White => controller.get_white_queen_idle_moves(),
                 CheckersColor::Black => controller.get_black_queen_idle_moves(),
@@ -234,6 +241,10 @@ pub mod player {
 
     impl <T: BoardEstimator + Sync + Send> Player for MinMaxBot<T> {
         fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                *nodes_visited = 0;
+            }
             if moves.len() == 1 {
                 return moves.first().unwrap()
             }
@@ -251,11 +262,20 @@ pub mod player {
             let indices = self.get_best_indices(&moves_eval, best_eval);
             let best_moves = self.get_at_indices(&indices, moves);
 
-            println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
+            println!("{:?} Bot best: {}", self.color, best_eval * if self.color.is_white() {1.0} else {-1.0});
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                println!("{}", *nodes_visited);
+            }
             best_moves.choose(&mut rand::thread_rng()).unwrap()
         }
 
         fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                *nodes_visited = 0;
+            }
+
             if captures.len() == 1 {
                 return captures.first().unwrap()
             }
@@ -275,7 +295,11 @@ pub mod player {
             let indices = self.get_best_indices(&captures_eval, best_eval);
             let best_captures = self.get_at_indices(&indices, captures);
 
-            println!("Bot best: {}", best_eval * if self.color.is_white() {1.0} else {-1.0});
+            println!("{:?} Bot best: {}",self.color , best_eval * if self.color.is_white() {1.0} else {-1.0});
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                println!("{}", *nodes_visited);
+            }
             best_captures.choose(&mut rand::thread_rng()).unwrap()
         }
 

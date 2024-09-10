@@ -34,7 +34,8 @@ macro_rules! pos {
 }
 
 
-fn main() { let board = Board::default();
+fn main() {
+    let board = Board::default();
     let controller = CheckersController::new(board);
 
     let count_estimator = CountEstimator::new(1.0, 3.0);
@@ -53,8 +54,8 @@ fn main() { let board = Board::default();
 
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(matrix_estimator, 10);
-    let minmax2 = MinMaxBot::new(count_estimator, 10);
+    let minmax1 = MinMaxBot::new(matrix_estimator, 8);
+    let minmax2 = MinMaxBot::new(count_estimator, 8);
     let mut game = Game::new(
         controller,
         minmax2,
