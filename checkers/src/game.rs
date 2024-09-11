@@ -239,7 +239,7 @@ pub mod player {
         }
     }
 
-    impl <T: BoardEstimator + Sync + Send> Player for MinMaxBot<T> {
+    impl <T: BoardEstimator + Sync> Player for MinMaxBot<T> {
         fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
             {
                 let mut nodes_visited = self.nodes_visited.lock().unwrap();
@@ -311,6 +311,26 @@ pub mod player {
             self.color = color;
         }
     }
+
+    pub struct AlphaBetaBot<T> {
+        estimator: T,
+        depth: usize,
+        color: CheckersColor,
+        nodes_visited: Arc<Mutex<usize>>
+    }
+
+    impl <T> AlphaBetaBot<T> {
+        pub const MIN_SCORE: f64 = -1e10;
+        pub const MAX_SCORE: f64 = 1e10;
+
+        pub fn new(estimator: T, depth: usize) -> Self {
+            Self{estimator, depth, color: CheckersColor::White, nodes_visited: Arc::new(Mutex::new(0))}
+        }
+    }
+
+    // impl <T: BoardEstimator> Player for AlphaBetaBot<T> {
+    //
+    // }
 }
 
 pub mod estimators {
