@@ -65,7 +65,7 @@ impl Figure {
     }
 }
 
-pub trait CheckersAction {
+pub trait CheckersAct {
     fn start_position(&self) -> (u8, u8);
 
     fn end_position(&self) -> (u8, u8);
@@ -89,7 +89,7 @@ impl Move {
     }
 }
 
-impl CheckersAction for Move {
+impl CheckersAct for Move {
     fn start_position(&self) -> (u8, u8) {
         (self.x_start, self.y_start)
     }
@@ -126,7 +126,7 @@ impl Jump {
     }
 }
 
-impl CheckersAction for Jump {
+impl CheckersAct for Jump {
     fn start_position(&self) -> (u8, u8) {
         (self.x_start, self.y_start)
     }
@@ -565,7 +565,7 @@ impl Display for JumpChain {
     }
 }
 
-impl CheckersAction for JumpChain {
+impl CheckersAct for JumpChain {
     fn start_position(&self) -> (u8, u8) {
         self.0[0].start_position()
     }

@@ -1,12 +1,13 @@
 use std::fmt::Display;
 use std::thread;
 use std::time::Duration;
-use crate::controller::{CheckersController, CheckersColor, CheckersAction, Figure};
+use crate::controller::{CheckersController, CheckersColor, CheckersAct, Figure};
 use rand::seq::SliceRandom;
 use crate::game::player::Player;
 
 pub mod player {
     use std::cmp::max;
+    use std::fmt::Display;
     use std::io;
     use std::sync::{Arc, Mutex};
     use rand::seq::SliceRandom;
