@@ -2,7 +2,7 @@ use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};
 use crate::game::estimators::{BoardEstimator, CountEstimator, WeightMatrixEstimator};
-use crate::game::player::{DummyBot, HumanPlayer, MinMaxBot};
+use crate::game::player::{AlphaBetaBot, DummyBot, HumanPlayer, MinMaxBot};
 
 mod board;
 mod controller;
@@ -54,11 +54,12 @@ fn main() {
 
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(matrix_estimator, 8);
+    let minmax1 = MinMaxBot::new(count_estimator, 8);
     let minmax2 = MinMaxBot::new(count_estimator, 8);
+    let alpha_beta1 = AlphaBetaBot::new(count_estimator, 8);
     let mut game = Game::new(
         controller,
-        minmax2,
+        alpha_beta1,
         minmax1
     );
     let winner = game.run();

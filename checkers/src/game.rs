@@ -262,10 +262,10 @@ pub mod player {
             let indices = self.get_best_indices(&moves_eval, best_eval);
             let best_moves = self.get_at_indices(&indices, moves);
 
-            println!("{:?} Bot best: {}", self.color, best_eval * if self.color.is_white() {1.0} else {-1.0});
+            println!("{:?} MinMaxBot best: {}", self.color, best_eval * if self.color.is_white() {1.0} else {-1.0});
             {
                 let mut nodes_visited = self.nodes_visited.lock().unwrap();
-                println!("{}", *nodes_visited);
+                println!("Universes visited: {}", *nodes_visited);
             }
             best_moves.choose(&mut rand::thread_rng()).unwrap()
         }
@@ -295,10 +295,10 @@ pub mod player {
             let indices = self.get_best_indices(&captures_eval, best_eval);
             let best_captures = self.get_at_indices(&indices, captures);
 
-            println!("{:?} Bot best: {}",self.color , best_eval * if self.color.is_white() {1.0} else {-1.0});
+            println!("{:?} MinMaxBot best: {}",self.color , best_eval * if self.color.is_white() {1.0} else {-1.0});
             {
                 let mut nodes_visited = self.nodes_visited.lock().unwrap();
-                println!("{}", *nodes_visited);
+                println!("Universes visited: {}", *nodes_visited);
             }
             best_captures.choose(&mut rand::thread_rng()).unwrap()
         }
@@ -326,11 +326,248 @@ pub mod player {
         pub fn new(estimator: T, depth: usize) -> Self {
             Self{estimator, depth, color: CheckersColor::White, nodes_visited: Arc::new(Mutex::new(0))}
         }
+
+        fn get_best_eval(&self, evals: &Vec<(usize, f64)>) -> f64 {
+            if self.color.is_white() {
+                evals
+                    .iter()
+                    .map(|(_, eval)| eval)
+                    .cloned()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(f64::MIN)
+            } else {
+                evals
+                    .iter()
+                    .map(|(_, eval)| eval)
+                    .cloned()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap_or(f64::MAX)
+            }
+        }
+
+        fn get_best_indices(&self, evals: &Vec<(usize, f64)>, best: f64) -> Vec<usize> {
+            evals
+                .iter()
+                .filter(|(i, eval)| (eval - best).abs() < f64::EPSILON)
+                .map(|(i, _)| *i)
+                .collect()
+        }
+
+        fn get_at_indices<'a, U>(&'a self, indices: &[usize], values: &'a [U]) -> Vec<&U> {
+            let mut ret = Vec::with_capacity(indices.len());
+            for &i in indices {
+                ret.push(&values[i])
+            }
+            ret
+        }
     }
 
-    // impl <T: BoardEstimator> Player for AlphaBetaBot<T> {
-    //
-    // }
+    impl <T: BoardEstimator> AlphaBetaBot<T> {
+        fn minmax(
+            &self,
+            controller: &CheckersController,
+            depth: usize,
+            current_color: CheckersColor,
+            alpha: f64,
+            beta: f64
+        ) -> f64 {
+            if depth == 0 {
+                {
+                    let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                    *nodes_visited += 1;
+                }
+                return self.estimator.score(&controller.board);
+            }
+            let idle_moves = match self.color {
+                CheckersColor::White => controller.get_white_queen_idle_moves(),
+                CheckersColor::Black => controller.get_black_queen_idle_moves(),
+            };
+            if idle_moves > 8 {
+                return if current_color.is_white() { Self::MIN_SCORE } else { Self::MAX_SCORE };
+            }
+            let (jumps, moves) = controller.options(current_color);
+            if !jumps.is_empty() {
+                return self.minmax_jumps(controller, &jumps, depth, current_color, alpha, beta);
+            }
+            if !moves.is_empty() {
+                return self.minmax_moves(controller, &moves, depth, current_color, alpha, beta);
+            }
+            if current_color.is_white() { Self::MIN_SCORE } else { Self::MAX_SCORE }
+        }
+
+        fn minmax_jumps(
+            &self,
+            controller: &CheckersController,
+            captures: &[JumpChain],
+            depth: usize,
+            current_color: CheckersColor,
+            alpha: f64,
+            beta: f64
+        ) -> f64 {
+            let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
+            let mut new_cut = current;
+            for capture in captures {
+                let mut controller = CheckersController::with_idle_moves(
+                    controller.board,
+                    controller.get_white_queen_idle_moves(),
+                    controller.get_black_queen_idle_moves()
+                );
+                controller.execute_capture(capture);
+                let est = self.minmax(
+                    &controller,
+                    depth - 1,
+                    current_color.opposite(),
+                    if current_color.is_white() { new_cut } else {alpha},
+                    if current_color.is_white() {beta} else {new_cut}
+                );
+                if current_color.is_white() {
+                    if est > current {
+                        current = est;
+                    }
+                    if est > new_cut {
+                        new_cut = est;
+                    }
+                    if beta <= new_cut {
+                        break
+                    }
+                } else {
+                    if est < current {
+                        current = est;
+                    }
+                    if est < new_cut {
+                        new_cut = est;
+                    }
+                    if new_cut < alpha {
+                        break;
+                    }
+                }
+            }
+            current
+        }
+
+        fn minmax_moves(
+            &self,
+            controller: &CheckersController,
+            moves: &[Move],
+            depth: usize,
+            current_color: CheckersColor,
+            alpha: f64,
+            beta: f64
+        ) -> f64 {
+            let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
+            let mut new_cut = current;
+            for move_ in moves {
+                let mut controller = CheckersController::with_idle_moves(
+                    controller.board,
+                    controller.get_white_queen_idle_moves(),
+                    controller.get_black_queen_idle_moves(),
+                );
+                controller.execute_move(move_);
+                let est = self.minmax(
+                    &controller,
+                    depth - 1,
+                    current_color.opposite(),
+                    if current_color.is_white() { new_cut } else {alpha},
+                    if current_color.is_white() {beta} else {new_cut}
+                );
+                if current_color.is_white() {
+                    if est > current {
+                        current = est;
+                    }
+                    if est > new_cut {
+                        new_cut = est;
+                    }
+                    if beta <= new_cut {
+                        break
+                    }
+                } else {
+                    if est < current {
+                        current = est;
+                    }
+                    if est < new_cut {
+                        new_cut = est;
+                    }
+                    if new_cut < alpha {
+                        break;
+                    }
+                }
+            }
+            current
+        }
+    }
+
+    impl <T: BoardEstimator + Sync> Player for AlphaBetaBot<T> {
+        fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                *nodes_visited = 0;
+            }
+            if moves.len() == 1 {
+                return moves.first().unwrap()
+            }
+
+            let moves_eval: Vec<(usize, f64)> = moves
+                .par_iter()
+                .enumerate()
+                .map(|(i, move_)| {
+                    let mut controller = CheckersController::new(board);
+                    controller.execute_move(move_);
+                    let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), Self::MIN_SCORE - 1.0, Self::MAX_SCORE + 1.0);
+                    (i, eval)
+                }).collect();
+            let best_eval = self.get_best_eval(&moves_eval);
+            let indices = self.get_best_indices(&moves_eval, best_eval);
+            let best_moves = self.get_at_indices(&indices, moves);
+
+            println!("{:?} AlphaBetaBot best: {}", self.color, best_eval * if self.color.is_white() {1.0} else {-1.0});
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                println!("Universes visited: {}", *nodes_visited);
+            }
+            best_moves.choose(&mut rand::thread_rng()).unwrap()
+        }
+
+        fn choose_capture<'a>(&'a self, captures: &'a [JumpChain], board: Board) -> &JumpChain {
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                *nodes_visited = 0;
+            }
+
+            if captures.len() == 1 {
+                return captures.first().unwrap()
+            }
+
+            let captures_eval: Vec<(usize, f64)> = captures
+                .par_iter()
+                .enumerate()
+                .map(|(i, capture)| {
+                    let mut controller = CheckersController::new(board);
+                    controller.execute_capture(capture);
+                    let eval = self.minmax(&controller, self.depth - 1, self.get_color().opposite(), Self::MIN_SCORE - 1.0, Self::MAX_SCORE + 1.0);
+                    (i, eval)
+                })
+                .collect();
+
+            let best_eval = self.get_best_eval(&captures_eval);
+            let indices = self.get_best_indices(&captures_eval, best_eval);
+            let best_captures = self.get_at_indices(&indices, captures);
+
+            println!("{:?} AlphaBetaBot best: {}",self.color , best_eval * if self.color.is_white() {1.0} else {-1.0});
+            {
+                let mut nodes_visited = self.nodes_visited.lock().unwrap();
+                println!("Universes visited: {}", *nodes_visited);
+            }
+            best_captures.choose(&mut rand::thread_rng()).unwrap()
+        }
+
+        fn get_color(&self) -> CheckersColor {
+            self.color
+        }
+
+        fn set_color(&mut self, color: CheckersColor) {
+            self.color = color;
+        }
+    }
 }
 
 pub mod estimators {
