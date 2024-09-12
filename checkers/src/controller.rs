@@ -65,15 +65,15 @@ impl Figure {
     }
 }
 
-pub trait CheckersAct {
-    fn start_position(&self) -> (u8, u8);
-
-    fn end_position(&self) -> (u8, u8);
-
-    fn start_end(&self) -> ((u8, u8), (u8, u8)) {
-        (self.start_position(), self.end_position())
-    }
-}
+// pub trait CheckersAct {
+//     fn start_position(&self) -> (u8, u8);
+//
+//     fn end_position(&self) -> (u8, u8);
+//
+//     fn start_end(&self) -> ((u8, u8), (u8, u8)) {
+//         (self.start_position(), self.end_position())
+//     }
+// }
 
 #[derive(Copy, Clone, Debug)]
 pub struct Move {
@@ -87,17 +87,29 @@ impl Move {
     pub fn new(x_start: u8, y_start: u8, x_end: u8, y_end: u8) -> Self {
         Self {x_start, y_start, x_end, y_end}
     }
-}
 
-impl CheckersAct for Move {
-    fn start_position(&self) -> (u8, u8) {
+    pub fn start_position(&self) -> (u8, u8) {
         (self.x_start, self.y_start)
     }
 
-    fn end_position(&self) -> (u8, u8) {
+    pub fn end_position(&self) -> (u8, u8) {
         (self.x_end, self.y_end)
     }
+
+    pub fn start_end(&self) -> ((u8, u8), (u8, u8)) {
+        (self.start_position(), self.end_position())
+    }
 }
+
+// impl CheckersAct for Move {
+//     fn start_position(&self) -> (u8, u8) {
+//         (self.x_start, self.y_start)
+//     }
+//
+//     fn end_position(&self) -> (u8, u8) {
+//         (self.x_end, self.y_end)
+//     }
+// }
 
 impl Display for Move {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -124,17 +136,29 @@ impl Jump {
     pub fn over_position(&self) -> (u8, u8) {
         (self.x_over, self.y_over)
     }
-}
 
-impl CheckersAct for Jump {
-    fn start_position(&self) -> (u8, u8) {
+    pub fn start_position(&self) -> (u8, u8) {
         (self.x_start, self.y_start)
     }
 
-    fn end_position(&self) -> (u8, u8) {
+    pub fn end_position(&self) -> (u8, u8) {
         (self.x_end, self.y_end)
     }
+
+    pub fn start_end(&self) -> ((u8, u8), (u8, u8)) {
+        (self.start_position(), self.end_position())
+    }
 }
+
+// impl CheckersAct for Jump {
+//     fn start_position(&self) -> (u8, u8) {
+//         (self.x_start, self.y_start)
+//     }
+//
+//     fn end_position(&self) -> (u8, u8) {
+//         (self.x_end, self.y_end)
+//     }
+// }
 
 impl Display for Jump {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -145,6 +169,72 @@ impl Display for Jump {
             alias(self.x_end, self.y_end)
         );
         write!(f, "{}", repr)
+    }
+}
+
+#[derive(Debug)]
+pub struct JumpChain(Vec<Jump>);
+
+impl JumpChain {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn start_position(&self) -> (u8, u8) {
+        self.0.first().unwrap().start_position()
+    }
+
+    pub fn end_position(&self) -> (u8, u8) {
+        self.0.last().unwrap().end_position()
+    }
+}
+
+impl Display for JumpChain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.0.is_empty() { return write!(f, "[]") };
+        let (x_start, y_start) = self.0.first().unwrap().start_position();
+        let mut ret = format!("{} -> ", alias(x_start, y_start));
+        let (mut x_end, mut y_end) = self.0.first().unwrap().end_position();
+        for jump in self.0.iter().skip(1) {
+            let (x_start, y_start) = jump.start_position();
+            let al = alias(x_start, y_start);
+            ret = format!("{ret}{al} -> ");
+            (x_end, y_end) = jump.end_position();
+        };
+        ret = format!("{ret}{}", alias(x_end, y_end));
+        write!(f, "{}", ret)
+    }
+}
+
+// impl CheckersAct for JumpChain {
+//     fn start_position(&self) -> (u8, u8) {
+//         self.0[0].start_position()
+//     }
+//
+//     fn end_position(&self) -> (u8, u8) {
+//         self.0.last().unwrap().end_position()
+//     }
+// }
+
+pub enum CheckersAction {
+    Jump(Jump), Move(Move), JumpChain(JumpChain)
+}
+
+impl CheckersAction {
+    pub fn start_position(&self) -> (u8, u8) {
+        match self {
+            CheckersAction::JumpChain(jump_chain) => jump_chain.start_position(),
+            CheckersAction::Jump(jump) => jump.start_position(),
+            CheckersAction::Move(move_) => move_.start_position()
+        }
+    }
+
+    pub fn end_position(&self) -> (u8, u8) {
+        match self {
+            CheckersAction::JumpChain(jump_chain) => jump_chain.end_position(),
+            CheckersAction::Jump(jump) => jump.end_position(),
+            CheckersAction::Move(move_) => move_.end_position()
+        }
     }
 }
 
@@ -496,6 +586,14 @@ impl CheckersController {
         self.board.set(x_end, y_end, Some(piece));
     }
 
+    pub fn execute_action(&mut self, action: &CheckersAction) {
+        match action {
+            CheckersAction::Move(move_) => self.execute_move(move_),
+            CheckersAction::Jump(jump) => self.execute_jump(jump),
+            CheckersAction::JumpChain(jump_chain) => self.execute_capture(jump_chain)
+        }
+    }
+
     fn in_bounds(x: i8, y: i8) -> bool {
         if y > 7 || x > 7 { return false; }
         if y < 0 || x < 0 { return false; }
@@ -539,38 +637,4 @@ impl CheckersController {
     }
 }
 
-#[derive(Debug)]
-pub struct JumpChain(Vec<Jump>);
 
-impl JumpChain {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl Display for JumpChain {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.0.is_empty() { return write!(f, "[]") };
-        let (x_start, y_start) = self.0.first().unwrap().start_position();
-        let mut ret = format!("{} -> ", alias(x_start, y_start));
-        let (mut x_end, mut y_end) = self.0.first().unwrap().end_position();
-        for jump in self.0.iter().skip(1) {
-            let (x_start, y_start) = jump.start_position();
-            let al = alias(x_start, y_start);
-            ret = format!("{ret}{al} -> ");
-            (x_end, y_end) = jump.end_position();
-        };
-        ret = format!("{ret}{}", alias(x_end, y_end));
-        write!(f, "{}", ret)
-    }
-}
-
-impl CheckersAct for JumpChain {
-    fn start_position(&self) -> (u8, u8) {
-        self.0[0].start_position()
-    }
-
-    fn end_position(&self) -> (u8, u8) {
-        self.0.last().unwrap().end_position()
-    }
-}

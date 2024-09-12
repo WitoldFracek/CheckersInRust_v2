@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::thread;
 use std::time::Duration;
-use crate::controller::{CheckersController, CheckersColor, CheckersAct, Figure};
+use crate::controller::{CheckersController, CheckersColor, Figure};
 use rand::seq::SliceRandom;
 use crate::game::player::Player;
 
@@ -131,6 +131,19 @@ pub mod player {
         pub const MAX_SCORE: f64 = 1e10;
 
         pub fn new(estimator: T, depth: usize) -> Self { Self{estimator, depth, color: CheckersColor::White, nodes_visited: Arc::new(Mutex::new(0))} }
+
+        fn update_estimate(&self, est: f64, current: f64, color: CheckersColor) -> f64 {
+            if color.is_white() {
+                if est > current {
+                    return est;
+                }
+            } else {
+                if est < current {
+                    return est;
+                }
+            }
+            current
+        }
     }
 
     impl <T: BoardEstimator> MinMaxBot<T> {
@@ -169,15 +182,7 @@ pub mod player {
                 );
                 controller.execute_capture(capture);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
-                if current_color.is_white() {
-                    if est > current {
-                        current = est;
-                    }
-                } else {
-                    if est < current {
-                        current = est;
-                    }
-                }
+                current = self.update_estimate(est, current, current_color);
             }
             current
         }
@@ -192,15 +197,7 @@ pub mod player {
                 );
                 controller.execute_move(move_);
                 let est = self.minmax(&controller, depth - 1, current_color.opposite());
-                if current_color.is_white() {
-                    if est > current {
-                        current = est;
-                    }
-                } else {
-                    if est < current {
-                        current = est;
-                    }
-                }
+                current = self.update_estimate(est, current, current_color);
             }
             current
         }
@@ -361,6 +358,35 @@ pub mod player {
             }
             ret
         }
+
+        fn update_estimate(est: f64, current: f64, alpha: f64, beta: f64, cut: f64, color: CheckersColor) -> (f64, f64, bool) {
+            //! (new estimate, new cut, do break)
+            let mut ret_current = current;
+            let mut ret_cut = cut;
+            let mut ret_break = false;
+            if color.is_white() {
+                if est > current {
+                    ret_current = est;
+                }
+                if est > cut {
+                    ret_cut = est;
+                }
+                if beta <= cut {
+                    ret_break = true;
+                }
+            } else {
+                if est < current {
+                    ret_current = est;
+                }
+                if est < cut {
+                    ret_cut = est;
+                }
+                if cut < alpha {
+                    ret_break = true;
+                }
+            }
+            (ret_current, ret_cut, ret_break)
+        }
     }
 
     impl <T: BoardEstimator> AlphaBetaBot<T> {
@@ -407,6 +433,7 @@ pub mod player {
         ) -> f64 {
             let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
             let mut new_cut = current;
+            let mut do_break = false;
             for capture in captures {
                 let mut controller = CheckersController::with_idle_moves(
                     controller.board,
@@ -421,27 +448,31 @@ pub mod player {
                     if current_color.is_white() { new_cut } else {alpha},
                     if current_color.is_white() {beta} else {new_cut}
                 );
-                if current_color.is_white() {
-                    if est > current {
-                        current = est;
-                    }
-                    if est > new_cut {
-                        new_cut = est;
-                    }
-                    if beta <= new_cut {
-                        break
-                    }
-                } else {
-                    if est < current {
-                        current = est;
-                    }
-                    if est < new_cut {
-                        new_cut = est;
-                    }
-                    if new_cut < alpha {
-                        break;
-                    }
+                (current, new_cut, do_break) = Self::update_estimate(est, current, alpha, beta, new_cut, current_color);
+                if do_break {
+                    break
                 }
+                // if current_color.is_white() {
+                //     if est > current {
+                //         current = est;
+                //     }
+                //     if est > new_cut {
+                //         new_cut = est;
+                //     }
+                //     if beta <= new_cut {
+                //         break
+                //     }
+                // } else {
+                //     if est < current {
+                //         current = est;
+                //     }
+                //     if est < new_cut {
+                //         new_cut = est;
+                //     }
+                //     if new_cut < alpha {
+                //         break;
+                //     }
+                // }
             }
             current
         }
@@ -457,6 +488,7 @@ pub mod player {
         ) -> f64 {
             let mut current = if current_color.is_white() { f64::MIN } else { f64::MAX };
             let mut new_cut = current;
+            let mut do_break = false;
             for move_ in moves {
                 let mut controller = CheckersController::with_idle_moves(
                     controller.board,
@@ -471,27 +503,31 @@ pub mod player {
                     if current_color.is_white() { new_cut } else {alpha},
                     if current_color.is_white() {beta} else {new_cut}
                 );
-                if current_color.is_white() {
-                    if est > current {
-                        current = est;
-                    }
-                    if est > new_cut {
-                        new_cut = est;
-                    }
-                    if beta <= new_cut {
-                        break
-                    }
-                } else {
-                    if est < current {
-                        current = est;
-                    }
-                    if est < new_cut {
-                        new_cut = est;
-                    }
-                    if new_cut < alpha {
-                        break;
-                    }
+                (current, new_cut, do_break) = Self::update_estimate(est, current, alpha, beta, new_cut, current_color);
+                if do_break {
+                    break;
                 }
+                // if current_color.is_white() {
+                //     if est > current {
+                //         current = est;
+                //     }
+                //     if est > new_cut {
+                //         new_cut = est;
+                //     }
+                //     if beta <= new_cut {
+                //         break
+                //     }
+                // } else {
+                //     if est < current {
+                //         current = est;
+                //     }
+                //     if est < new_cut {
+                //         new_cut = est;
+                //     }
+                //     if new_cut < alpha {
+                //         break;
+                //     }
+                // }
             }
             current
         }
