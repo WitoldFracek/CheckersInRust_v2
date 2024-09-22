@@ -65,15 +65,15 @@ impl Figure {
     }
 }
 
-// pub trait CheckersAct {
-//     fn start_position(&self) -> (u8, u8);
-//
-//     fn end_position(&self) -> (u8, u8);
-//
-//     fn start_end(&self) -> ((u8, u8), (u8, u8)) {
-//         (self.start_position(), self.end_position())
-//     }
-// }
+pub trait CheckersAct: Into<CheckersAction> {
+    fn start_position(&self) -> (u8, u8);
+
+    fn end_position(&self) -> (u8, u8);
+
+    fn start_end(&self) -> ((u8, u8), (u8, u8)) {
+        (self.start_position(), self.end_position())
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Move {
@@ -83,33 +83,28 @@ pub struct Move {
     y_end: u8
 }
 
+impl Into<CheckersAction> for Move {
+    fn into(self) -> CheckersAction {
+        CheckersAction::Move(self)
+    }
+}
+
+impl CheckersAct for Move {
+    fn start_position(&self) -> (u8, u8) {
+        (self.x_start, self.y_start)
+    }
+
+    fn end_position(&self) -> (u8, u8) {
+        (self.x_end, self.y_end)
+    }
+}
+
 impl Move {
     pub fn new(x_start: u8, y_start: u8, x_end: u8, y_end: u8) -> Self {
         Self {x_start, y_start, x_end, y_end}
     }
-
-    pub fn start_position(&self) -> (u8, u8) {
-        (self.x_start, self.y_start)
-    }
-
-    pub fn end_position(&self) -> (u8, u8) {
-        (self.x_end, self.y_end)
-    }
-
-    pub fn start_end(&self) -> ((u8, u8), (u8, u8)) {
-        (self.start_position(), self.end_position())
-    }
 }
 
-// impl CheckersAct for Move {
-//     fn start_position(&self) -> (u8, u8) {
-//         (self.x_start, self.y_start)
-//     }
-//
-//     fn end_position(&self) -> (u8, u8) {
-//         (self.x_end, self.y_end)
-//     }
-// }
 
 impl Display for Move {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

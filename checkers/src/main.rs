@@ -54,9 +54,9 @@ fn main() {
 
     let human = HumanPlayer::new();
     let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(count_estimator, 8);
+    let minmax1 = MinMaxBot::new(count_estimator, 6);
     let minmax2 = MinMaxBot::new(count_estimator, 8);
-    let alpha_beta1 = AlphaBetaBot::new(count_estimator, 8);
+    let alpha_beta1 = AlphaBetaBot::new(count_estimator, 10);
     let mut game = Game::new(
         controller,
         alpha_beta1,
