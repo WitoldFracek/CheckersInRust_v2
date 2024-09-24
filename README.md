@@ -37,7 +37,7 @@ pub fn num_white_queens(&self) -> u32 {
 ### Simple insights
 - For now best to play with MinMaxBot depth set to 8 and AlphaBetaBot depth set to 12.
 - Comparing MinMaxBot with AlphaBetaBot with depth 8, the first one visits hundred of 
- thousands possible board whereas the latter only tens of thousands.
+ thousands possible boards whereas the latter only tens of thousands.
 
 ## Board estimation strategies
 1. CountEstimator - counts the number of pawns and queens advantage over other player (with adjustable weights for pawns and queens)
