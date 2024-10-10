@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};
@@ -32,7 +34,6 @@ macro_rules! pos {
     ($from: ident, BP) => { (stringify!($from), Figure::Pawn(CheckersColor::Black)) };
     ($from: ident, BQ) => { (stringify!($from), Figure::Queen(CheckersColor::Black)) };
 }
-
 
 fn main() {
     let board = Board::default();

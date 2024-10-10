@@ -176,11 +176,11 @@ impl JumpChain {
     }
 
     pub fn start_position(&self) -> (u8, u8) {
-        self.0.first().unwrap().start_position()
+        self.0.first().expect("JumpChain should have at least one element").start_position()
     }
 
     pub fn end_position(&self) -> (u8, u8) {
-        self.0.last().unwrap().end_position()
+        self.0.last().expect("JumpChain should have at least one element").end_position()
     }
 }
 
