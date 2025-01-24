@@ -1,4 +1,6 @@
-use std::mem::{transmute_copy, MaybeUninit};
+
+use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};

@@ -27,8 +27,8 @@ pub fn alias(x: u8, y: u8) -> String {
 
 pub fn coords_from_alias(alias: &str) -> (u8, u8) {
     assert_eq!(alias.len(), 2, "invalid alias - unknown board position {alias:?}");
-    let letter = alias.chars().next().unwrap().to_ascii_uppercase();
-    let index = alias.chars().nth(1).unwrap();
+    let letter = alias.chars().next().expect("alias should have length equal to 2").to_ascii_uppercase();
+    let index = alias.chars().nth(1).expect("alias should have length equal to 2");
     assert!(('A'..='H').contains(&letter), "invalid alias - unknown letter board position {alias:?}");
     assert!(('1'..='8').contains(&index), "invalid alias - unknown number board position {alias:?}");
     let x = letter as u8 - b'A';
@@ -49,10 +49,6 @@ impl Square {
 
     pub fn has_figure(&self) -> bool {
         self.figure.is_some()
-    }
-
-    pub fn figure_color(&self) -> CheckersColor {
-        self.figure.unwrap().color()
     }
 }
 

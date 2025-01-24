@@ -34,7 +34,9 @@ pub mod player {
 
     impl Player for DummyBot {
         fn choose_move<'a>(&'a self, moves: &'a [Move], board: Board) -> &Move {
-            let m = moves.choose(&mut rand::thread_rng()).unwrap();
+            let m = moves
+                .choose(&mut rand::thread_rng())
+                .expect("moves should contain at least one move");
             println!("{m}");
             m
         }
