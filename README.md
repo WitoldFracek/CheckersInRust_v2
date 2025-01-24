@@ -5,8 +5,6 @@ Implementation of [minmax](https://en.wikipedia.org/wiki/Minimax) algorithm to p
 classic [checkers](https://en.wikipedia.org/wiki/Checkers). Code written purely in Rust with multithreading\
 optimisations and alpha-beta pruning optimization.
 
-
-
 ## Board representation
 ```rust
 #[derive(Copy, Clone, Debug)]
