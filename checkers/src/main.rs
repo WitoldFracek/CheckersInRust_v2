@@ -1,3 +1,4 @@
+use std::mem::{transmute_copy, MaybeUninit};
 use crate::board::{Board, alias, coords_from_alias};
 use crate::controller::{CheckersColor, CheckersController, Figure, Jump, Move};
 use crate::game::{Game};
@@ -33,35 +34,57 @@ macro_rules! pos {
     ($from: ident, BQ) => { (stringify!($from), Figure::Queen(CheckersColor::Black)) };
 }
 
+macro_rules! comp {
+    [$elem:expr; for $var:ident in $iter:expr] => {{
+        let mut res = Vec::new();
+        for $var in $iter {
+            res.push($elem)
+        }
+        res
+    }};
+    [$elem:expr; for $var:ident in $iter:expr; if $cond:expr] => {{
+        let mut res = Vec::new();
+        for $var in $iter {
+            if $cond {
+                res.push($elem)
+            }
+        }
+        res
+    }};
+}
+
 
 fn main() {
-    let board = Board::default();
-    let controller = CheckersController::new(board);
+    let xs = comp![x * 2; for x in 0..10; if x % 2 == 0];
+    println!("{xs:?}");
+    // let board = Board::default();
+    // let controller = CheckersController::new(board);
+    //
+    // let count_estimator = CountEstimator::new(1.0, 3.0);
+    // let matrix_estimator = WeightMatrixEstimator::new(
+    //     [
+    //         [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+    //         [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
+    //         [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+    //         [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+    //         [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+    //         [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
+    //         [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
+    //         [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+    //     ], 1.0, 3.0
+    // );
+    //
+    // let human = HumanPlayer::new();
+    // let dummy = DummyBot::new();
+    // let minmax1 = MinMaxBot::new(count_estimator, 6);
+    // let minmax2 = MinMaxBot::new(count_estimator, 8);
+    // let alpha_beta1 = AlphaBetaBot::new(count_estimator, 10);
+    // let mut game = Game::new(
+    //     controller,
+    //     alpha_beta1,
+    //     minmax1
+    // );
+    // let winner = game.run();
+    // println!("Winner: {winner:?}");
 
-    let count_estimator = CountEstimator::new(1.0, 3.0);
-    let matrix_estimator = WeightMatrixEstimator::new(
-        [
-            [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
-            [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
-            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
-            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
-            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
-            [3.0, 2.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0],
-            [3.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0],
-            [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
-        ], 1.0, 3.0
-    );
-
-    let human = HumanPlayer::new();
-    let dummy = DummyBot::new();
-    let minmax1 = MinMaxBot::new(count_estimator, 6);
-    let minmax2 = MinMaxBot::new(count_estimator, 8);
-    let alpha_beta1 = AlphaBetaBot::new(count_estimator, 10);
-    let mut game = Game::new(
-        controller,
-        alpha_beta1,
-        minmax1
-    );
-    let winner = game.run();
-    println!("Winner: {winner:?}");
 }
